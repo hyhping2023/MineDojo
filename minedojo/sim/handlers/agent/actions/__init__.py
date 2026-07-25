@@ -9,3 +9,8 @@ from .keyboard import *
 from .place import *
 from .smelt import *
 from .swap_slot import SwapSlotAction
+from .trade import *
+from .enchant import *
+from .brew import *
+from .anvil import *
+from .chest import *

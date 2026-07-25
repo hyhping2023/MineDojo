@@ -25,6 +25,7 @@ class CMDExecutor:
         "clear",
         "setblock",
         "spreadplayers",
+        "save-all",
     }
 
     def __init__(self, world, raise_error_on_invalid_cmds: bool = False):
@@ -151,4 +152,9 @@ class CMDExecutor:
         obs, _, _, info = self.execute_cmd(
             f"/spreadplayers ~ ~ 0 {max_range} false @p", action
         )
+        return obs, 0, self._world.is_terminated, info
+
+    def save_world(self, action: Optional[dict] = None):
+        """Flush all world data to disk via /save-all command."""
+        obs, _, _, info = self.execute_cmd("/save-all", action)
         return obs, 0, self._world.is_terminated, info

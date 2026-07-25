@@ -11,3 +11,4 @@ from .voxel_lidar import VoxelObservation, RichLidarObservation
 from .true_flat_inventory import TrueFlatInventoryObservation, EquipmentObservation
 from .achievements import ObsFromAchievements
 from .nearby_tools import NearbyToolsObservation
+from .gui_state import GuiStateObservation

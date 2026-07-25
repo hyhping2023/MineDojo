@@ -92,6 +92,16 @@ public class MalmoMod
 
     public static SimpleNetworkWrapper network;
 
+    public static boolean allowGuiInteract = false;
+
+    public static boolean getAllowGuiInteract() {
+        return allowGuiInteract;
+    }
+
+    public static void setAllowGuiInteract(boolean val) {
+        allowGuiInteract = val;
+    }
+
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
     {
@@ -143,6 +153,11 @@ public class MalmoMod
         network.registerMessage(ObservationFromSystemImplementation.SystemRequestMessageHandler.class, ObservationFromSystemImplementation.SystemRequestMessage.class, 12, Side.SERVER);
         network.registerMessage(NearbyCraftCommandsImplementation.CraftingTableMessageHandler.class, NearbyCraftCommandsImplementation.CraftingTableMessage.class, 18, Side.CLIENT);
         network.registerMessage(NearbySmeltCommandsImplementation.FurnaceMessageHandler.class, NearbySmeltCommandsImplementation.FurnaceMessage.class, 19, Side.CLIENT);
+        network.registerMessage(TradeCommandsImplementation.TradeMessageHandler.class, TradeCommandsImplementation.TradeMessage.class, 20, Side.SERVER);
+        network.registerMessage(EnchantCommandsImplementation.EnchantMessageHandler.class, EnchantCommandsImplementation.EnchantMessage.class, 21, Side.SERVER);
+        network.registerMessage(BrewingCommandsImplementation.BrewingMessageHandler.class, BrewingCommandsImplementation.BrewingMessage.class, 22, Side.SERVER);
+        network.registerMessage(AnvilCommandsImplementation.AnvilMessageHandler.class, AnvilCommandsImplementation.AnvilMessage.class, 23, Side.SERVER);
+        network.registerMessage(ChestCommandsImplementation.ChestMessageHandler.class, ChestCommandsImplementation.ChestMessage.class, 24, Side.SERVER);
     }
 
     @EventHandler

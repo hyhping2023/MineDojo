@@ -30,12 +30,18 @@ Using MineDojo, AI agents can freely explore a procedurally generated 3D world w
 * MineDojo won the [Outstanding Paper award](https://blog.neurips.cc/2022/11/21/announcing-the-neurips-2022-awards/) at NeurIPS!
 * MineCLIP reward model and agent code are [released](https://github.com/MineDojo/MineCLIP)! 
 * We have open-sourced the [creative task labeling UI](https://github.com/MineDojo/TaskCreationUI), so researchers can curate more tasks from YouTube themselves. This tool can also be used beyond Minecraft for other agent domains.
+* **NEW**: Parallel video generation with world snapshots, A* pathfinding, and 22 scripted operations (trade, enchant, brew, etc.) — see [Extensions](#Extensions) below.
 
 
 # Contents
 
 - [Installation](#Installation)
 - [Getting Started](#Getting-Started)
+- [Extensions](#Extensions)
+  - [Parallel Video Generation](#Parallel-Video-Generation)
+  - [World Snapshots](#World-Snapshots)
+  - [Pathfinding](#Pathfinding)
+  - [Operations Framework](#Operations-Framework)
 - [Benchmarking Suite](#Benchmarking-Suite)
   - [Programmatic Tasks](#Programmatic-Tasks)
   - [Creative Tasks](#Creative-Tasks)
@@ -102,6 +108,105 @@ Please refer to [this tutorial](https://docs.minedojo.org/sections/getting_start
 MineDojo can be extensively customized to be tailored to your research needs. Please check out customization guides on [tasks](https://docs.minedojo.org/sections/customization/task.html), [simulation](https://docs.minedojo.org/sections/customization/sim.html), and [privileged observation](https://docs.minedojo.org/sections/customization/privileged_obs.html).
 
 MineCLIP reward model and agent code are [open-sourced](https://github.com/MineDojo/MineCLIP). Please refer to the [paper](https://arxiv.org/abs/2206.08853) for more algorithmic details.
+
+
+# Extensions
+
+This repository includes extension modules for large-scale parallel video generation, world snapshots, and scripted operation sequences.
+
+## Parallel Video Generation
+
+Generate thousands of videos per day using multi-process workers with pre-loaded Minecraft instances:
+
+```python
+from minedojo.workers import TaskScheduler, VideoTask
+from minedojo.world_snapshots.config import SCENE_CONFIGS
+
+scheduler = TaskScheduler(n_workers=8, scene_configs=SCENE_CONFIGS,
+                          snapshots_dir="/data/snapshots/", output_dir="/data/videos/")
+scheduler.start()
+
+task = VideoTask(
+    task_id="combat_001", scene_type="plains",
+    operations=[("spawn_attack", {"mob": "minecraft:zombie", "rel_pos": [5,0,0], "weapon": "diamond_sword"})],
+)
+scheduler.submit(task)
+results = scheduler.collect_results(1)
+scheduler.shutdown()
+```
+
+Each worker process captures POV frames at 20fps and encodes them to H.264 video via ffmpeg. Workers never restart Minecraft between tasks — they teleport and re-inventory for maximum throughput.
+
+```bash
+# Launch parallel video generation
+python -m minedojo.workers.main --snapshots-dir /data/snapshots/ --output-dir /data/videos/ --n-workers 8
+```
+
+## World Snapshots
+
+Pre-build 7 scene types as reusable Minecraft world saves. Workers load snapshots instantly via `FileWorldGenerator`, avoiding costly procedural world generation:
+
+| Scene | Description | Key Operations |
+|-------|-------------|----------------|
+| plains | Flat grassland | navigate, combat, mining |
+| forest | Dense tree coverage | navigate, chop_tree, craft |
+| extreme_hills | Mountainous terrain | navigate (slopes), mining |
+| village | NPC village | trade, navigate, attack |
+| cave | Enclosed dark room | navigate (dark), mining |
+| water | Ocean biome | navigate (swim), spawn_entity |
+| gui_item | Room with all GUI blocks + villagers | trade, enchant, brew, anvil, chest, craft |
+
+```bash
+# Build all 7 world snapshots
+python scripts/build_snapshots.py --output /data/snapshots/
+```
+
+## Pathfinding
+
+A* pathfinding on a 3D voxel occupancy grid with slope traversal, obstacle avoidance, and water penalty:
+
+```python
+from minedojo.pathfinding import Navigator
+
+env = MineDojoSim(use_voxel=True, voxel_size={...}, ...)
+env.reset()
+nav = Navigator(env)
+success = nav.navigate_to(target_x=50, target_y=64, target_z=30, max_steps=200)
+```
+
+Features:
+- Straight, diagonal, jump-up, step-down, and fall neighbor moves
+- Incremental world map built from voxel observations
+- Dynamic replanning as new terrain is discovered
+
+## Operations Framework
+
+22 scripted operation types covering all major Minecraft interactions:
+
+| Category | Operations |
+|----------|------------|
+| Movement | `navigate`, `look_at`, `strafe` |
+| Inventory | `open_inventory`, `close_inventory`, `select_item`, `drop_item` |
+| Crafting | `craft`, `smelt` |
+| Combat | `attack`, `spawn_attack` |
+| Mining | `mine_block`, `chop_tree` |
+| Placement | `place_block` |
+| GUI | `trade`, `enchant`, `brew`, `anvil`, `chest` |
+| Entities | `spawn_entity`, `interact_entity`, `mount` |
+
+```python
+from minedojo.operations import OperationSequencer
+
+sequencer = OperationSequencer(env)
+result = sequencer.run_sequence([
+    ("navigate", {"target": [10, 64, 20], "max_steps": 200}),
+    ("mine_block", {"target_pos": [10, 65, 20], "block_type": "iron_ore"}),
+    ("craft", {"item": "iron_ingot"}),
+    ("select_item", {"item": "iron_ingot", "slot": "mainhand"}),
+])
+```
+
+GUI operations (trade, enchant, brew, anvil, chest) require the Java Malmo mod modifications — see `minedojo/sim/Malmo/` for the updated Java source.
 
 
 # Benchmarking Suite

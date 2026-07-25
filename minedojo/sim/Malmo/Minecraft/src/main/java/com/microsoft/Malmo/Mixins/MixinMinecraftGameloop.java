@@ -5,6 +5,7 @@ import java.util.Queue;
 import java.util.concurrent.FutureTask;
 
 import com.microsoft.Malmo.Client.FakeMouse;
+import com.microsoft.Malmo.MalmoMod;
 import org.lwjgl.opengl.Display;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -274,7 +275,9 @@ public abstract class MixinMinecraftGameloop {
     {
         if (!this.inGameHasFocus) {
             this.inGameHasFocus = true;
-            this.displayGuiScreen((GuiScreen) null);
+            if (!MalmoMod.getAllowGuiInteract()) {
+                this.displayGuiScreen((GuiScreen) null);
+            }
             this.leftClickCounter = 10000;
         }
     }

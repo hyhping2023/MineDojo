@@ -1,0 +1,75 @@
+"""Base class and utilities for scripted Minecraft operations."""
+
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Tuple
+
+
+class Operation(ABC):
+    """Base class for scripted Minecraft operations.
+
+    Each operation encapsulates a specific Minecraft action (navigate, craft,
+    attack, mine, etc.) and provides a parameterized execute() method that
+    performs the action by stepping the environment.
+
+    Subclasses must implement:
+        - get_parameters(): return the parameter space for this operation type.
+        - execute(params): perform the operation, return True on success.
+
+    Attributes:
+        env: The MineDojoSim (or wrapped) environment instance.
+        _step_count: Steps executed since last reset_counter().
+        _start_frame: Frame number when execution began.
+    """
+
+    def __init__(self, env):
+        self.env = env
+        self._step_count = 0
+        self._start_frame = 0
+
+    @abstractmethod
+    def get_parameters(self) -> Dict[str, Any]:
+        """Return parameter space description for this operation type.
+
+        Returns:
+            A dict describing the expected parameters, e.g.:
+            {"target": {"type": "list", "description": "[x, y, z] target position"}}
+        """
+
+    @abstractmethod
+    def execute(self, params: Dict[str, Any]) -> bool:
+        """Execute the operation with the given parameters.
+
+        Must call env.step() or step() as part of execution.
+
+        Args:
+            params: Dict of parameter values required by this operation.
+
+        Returns:
+            True if the operation completed successfully, False otherwise.
+        """
+
+    def reset_counter(self):
+        """Reset the internal step counter and start frame marker."""
+        self._step_count = 0
+        self._start_frame = 0
+
+    def step(self, action: Dict[str, Any]) -> Tuple[Any, float, bool, Any]:
+        """Execute one environment step and increment the step counter.
+
+        Args:
+            action: Action dict compatible with this env's action space.
+
+        Returns:
+            (obs, reward, done, info) tuple from env.step().
+        """
+        obs, reward, done, info = self.env.step(action)
+        self._step_count += 1
+        return obs, reward, done, info
+
+    def noop(self):
+        """Execute a single no-op step via the env's action space.
+
+        Returns:
+            (obs, reward, done, info) tuple from env.step(no_op()).
+        """
+        return self.step(self.env.action_space.no_op())

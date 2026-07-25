@@ -36,7 +36,7 @@ import java.util.logging.Logger;
 @Mixin(PlayerControllerMP.class)
 public abstract class MixinNoGuiInteract {
     private void catchGuiEntity(Entity target, CallbackInfoReturnable<EnumActionResult> cir) {
-        if (MalmoMod.isLowLevelInput()) {
+        if (MalmoMod.isLowLevelInput() || MalmoMod.getAllowGuiInteract()) {
             return;
         }
         if (target instanceof EntityVillager
@@ -83,12 +83,15 @@ public abstract class MixinNoGuiInteract {
         if (MalmoMod.isLowLevelInput()) {
             return;
         }
-        Block block = worldIn.getBlockState(stack).getBlock();
-        if (block instanceof BlockContainer
-        || block instanceof BlockAnvil
-        || block instanceof BlockWorkbench) {
-            cir.setReturnValue(EnumActionResult.PASS);
-            cir.cancel();
+        if (!MalmoMod.getAllowGuiInteract()) {
+            Block block = worldIn.getBlockState(stack).getBlock();
+            if (block instanceof BlockContainer
+            || block instanceof BlockAnvil
+            || block instanceof BlockWorkbench) {
+                cir.setReturnValue(EnumActionResult.PASS);
+                cir.cancel();
+                return;
+            }
         }
         catchGuiItem(player.getHeldItem(vec).getItem(), cir);
     }
