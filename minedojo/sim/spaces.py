@@ -5,17 +5,17 @@ import string
 import random
 from collections import OrderedDict
 
-import gym.spaces
+import gymnasium.spaces
 import numpy as np
 
 
-class MineRLSpace(abc.ABC, gym.Space):
+class MineRLSpace(abc.ABC, gymnasium.spaces.Space):
     """
     An interface for MineRL spaces.
     """
 
     @property
-    def flattened(self) -> gym.spaces.Box:
+    def flattened(self) -> gymnasium.spaces.Box:
         if not hasattr(self, "_flattened"):
             self._flattened = self.create_flattened_space()
         return self._flattened
@@ -45,7 +45,7 @@ class MineRLSpace(abc.ABC, gym.Space):
         pass
 
 
-class Tuple(gym.spaces.Tuple, MineRLSpace):
+class Tuple(gymnasium.spaces.Tuple, MineRLSpace):
     def no_op(self):
         raise NotImplementedError()
 
@@ -59,7 +59,7 @@ class Tuple(gym.spaces.Tuple, MineRLSpace):
         raise NotImplementedError()
 
 
-class Box(gym.spaces.Box, MineRLSpace):
+class Box(gymnasium.spaces.Box, MineRLSpace):
     def __init__(self, *args, normalizer_scale="linear", **kwargs):
         super(Box, self).__init__(*args, **kwargs)
 
@@ -192,7 +192,7 @@ class Box(gym.spaces.Box, MineRLSpace):
         )
 
 
-class Discrete(gym.spaces.Discrete, MineRLSpace):
+class Discrete(gymnasium.spaces.Discrete, MineRLSpace):
     def __init__(self, *args, **kwargs):
         super(Discrete, self).__init__(*args, **kwargs)
         self.eye = np.eye(self.n, dtype=np.float32)
@@ -215,7 +215,7 @@ class Discrete(gym.spaces.Discrete, MineRLSpace):
 
     def sample(self, bs=None):
         bdim = () if bs is None else (bs,)
-        return self.np_random.randint(self.n, size=bdim)
+        return self.np_random.integers(self.n, size=bdim)
 
 
 class Enum(Discrete, MineRLSpace):
@@ -310,7 +310,7 @@ class Enum(Discrete, MineRLSpace):
 
 
 # TODO: Vectorize containment?
-class Dict(gym.spaces.Dict, MineRLSpace):
+class Dict(gymnasium.spaces.Dict, MineRLSpace):
     def no_op(self, batch_shape=()):
         return OrderedDict(
             [
@@ -448,7 +448,7 @@ class Dict(gym.spaces.Dict, MineRLSpace):
         del self.spaces[key]
 
 
-class MultiDiscrete(gym.spaces.MultiDiscrete, MineRLSpace):
+class MultiDiscrete(gymnasium.spaces.MultiDiscrete, MineRLSpace):
     def __init__(self, *args, noop_vec=None, **kwargs):
         super(MultiDiscrete, self).__init__(*args, **kwargs)
         self.eyes = [np.eye(n, dtype=np.float32) for n in self.nvec]
@@ -490,7 +490,7 @@ class MultiDiscrete(gym.spaces.MultiDiscrete, MineRLSpace):
     def sample(self, bs=None):
         bdim = () if bs is None else (bs,)
         return (
-            self.np_random.random_sample(bdim + self.nvec.shape) * self.nvec
+            self.np_random.random(bdim + self.nvec.shape) * self.nvec
         ).astype(self.dtype)
 
 
@@ -517,7 +517,7 @@ class Text(MineRLSpace):
     MAX_STR_LEN = 100
 
     def __init__(self, shape):
-        super().__init__(shape, np.unicode_)
+        super().__init__(shape, np.str_)
 
     def sample(self, bs=None):
         total_strings = np.prod(self.shape)
@@ -530,7 +530,7 @@ class Text(MineRLSpace):
             )
             for _ in range(total_strings)
         ]
-        return np.array(np.reshape(strings, self.shape), np.dtype)
+        return np.array(np.reshape(strings, self.shape), self.dtype)
 
     def contains(self, x):
         contained = False  # ? TODO (R): Look back in git.
@@ -538,7 +538,7 @@ class Text(MineRLSpace):
             contained
             or isinstance(x, np.ndarray)
             and x.shape == self.shape
-            and x.dtype.type in [np.string_, np.unicode]
+            and x.dtype.type in [np.bytes_, np.str_]
         )
         contained = contained or self.shape in [None, 1] and isinstance(x, str)
         return contained

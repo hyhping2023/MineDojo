@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Union, Optional, List, Dict, Tuple, Literal, Any
 
 import cv2
-import gym
+import gymnasium as gym
 import numpy as np
 from lxml import etree
 
@@ -420,7 +420,7 @@ class MineDojoSim(gym.Env):
         raw_obs = self._bridge_env.reset(episode_id, [xml])[0]
         obs, info = self._process_raw_obs(raw_obs)
         self._prev_obs, self._prev_info = deepcopy(obs), deepcopy(info)
-        return obs
+        return obs, info
 
     def step(self, action: dict):
         """Run one timestep of the environment’s dynamics. Accepts an action and returns next_obs, reward, done, info.
@@ -441,11 +441,11 @@ class MineDojoSim(gym.Env):
         step_success, raw_obs = step_tuple.step_success, step_tuple.raw_obs
         if not step_success:
             # when step failed, return prev obs
-            return self._prev_obs, 0, True, self._prev_info
+            return self._prev_obs, 0, True, False, self._prev_info
         else:
             obs, info = self._process_raw_obs(raw_obs[0])
             self._prev_obs, self._prev_info = deepcopy(obs), deepcopy(info)
-            return obs, 0, self.is_terminated, info
+            return obs, 0, self.is_terminated, False, info
 
     def execute_cmd(self, cmd: str, action: Optional[dict] = None):
         """Execute a given string command.

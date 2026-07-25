@@ -93,8 +93,8 @@ class MineBlockOperation(Operation):
                     max(-1.0, min(1.0, pitch_diff / 10.0)),
                 )
                 action["camera"] = cam_delta
-            obs, _, done, _ = self.step(action)
-            if done:
+            obs, _, terminated, _, _ = self.step(action)
+            if terminated:
                 return False
 
         # Step 3: Mine the block (attack action).
@@ -102,8 +102,8 @@ class MineBlockOperation(Operation):
             action = self.env.action_space.no_op()
             if "attack" in action:
                 action["attack"] = 1
-            obs, _, done, _ = self.step(action)
-            if done:
+            obs, _, terminated, _, _ = self.step(action)
+            if terminated:
                 return False
 
         return True
@@ -169,8 +169,8 @@ class ChopTreeOperation(Operation):
             action = self.env.action_space.no_op()
             if "attack" in action:
                 action["attack"] = 1
-            obs, _, done, _ = self.step(action)
-            if done:
+            obs, _, terminated, _, _ = self.step(action)
+            if terminated:
                 break
             self.noop()
 

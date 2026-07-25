@@ -124,8 +124,8 @@ class LookAtOperation(Operation):
                 )
                 action["camera"] = cam_delta
 
-            obs, _, done, _ = self.step(action)
-            if done:
+            obs, _, terminated, _, _ = self.step(action)
+            if terminated:
                 return False
 
         return True
@@ -163,8 +163,8 @@ class StrafeOperation(Operation):
             action = self.env.action_space.no_op()
             if "move" in action:
                 action["move"] = direction == "left" and -1 or 1
-            obs, _, done, _ = self.step(action)
-            if done:
+            obs, _, terminated, _, _ = self.step(action)
+            if terminated:
                 return False
 
         return True

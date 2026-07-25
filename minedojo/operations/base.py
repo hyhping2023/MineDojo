@@ -53,23 +53,23 @@ class Operation(ABC):
         self._step_count = 0
         self._start_frame = 0
 
-    def step(self, action: Dict[str, Any]) -> Tuple[Any, float, bool, Any]:
+    def step(self, action: Dict[str, Any]) -> Tuple[Any, float, bool, bool, Any]:
         """Execute one environment step and increment the step counter.
 
         Args:
             action: Action dict compatible with this env's action space.
 
         Returns:
-            (obs, reward, done, info) tuple from env.step().
+            (obs, reward, terminated, truncated, info) tuple from env.step().
         """
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
         self._step_count += 1
-        return obs, reward, done, info
+        return obs, reward, terminated, truncated, info
 
     def noop(self):
         """Execute a single no-op step via the env's action space.
 
         Returns:
-            (obs, reward, done, info) tuple from env.step(no_op()).
+            (obs, reward, terminated, truncated, info) tuple from env.step(no_op()).
         """
         return self.step(self.env.action_space.no_op())

@@ -51,7 +51,7 @@ class _DamageSourceProperty(KeymapTranslationHandler):
 
     def __init__(self, key_list: List[str], space=None, default_if_missing=None):
         if space is None:
-            space = spaces.Box(low=0, high=np.inf, shape=(), dtype=np.int)
+            space = spaces.Box(low=0, high=np.inf, shape=(), dtype=int)
         if default_if_missing is None:
             default_if_missing = np.zeros((), dtype=space.dtype)
 

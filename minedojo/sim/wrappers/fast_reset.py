@@ -12,7 +12,7 @@ Side effects:
 """
 from __future__ import annotations
 
-import gym
+import gymnasium as gym
 
 from ..sim import MineDojoSim
 from ...sim.mc_meta.mc import MAX_FOOD, MAX_LIFE
@@ -71,9 +71,9 @@ class FastResetWrapper(gym.Wrapper):
             return self.env.reset()
         else:
             for cmd in self._reset_cmds:
-                obs, _, _, info = self.env.execute_cmd(cmd)
+                obs, _, _, _, info = self.env.execute_cmd(cmd)
             self._info_prev_reset = self.env.prev_info
-            return obs
+            return obs, info
 
     def execute_cmd(self, *args, **kwargs):
         return self.env.execute_cmd(*args, **kwargs)

@@ -61,8 +61,8 @@ class AttackOperation(Operation):
             action = self.env.action_space.no_op()
             if "attack" in action:
                 action["attack"] = 1
-            obs, _, done, _ = self.step(action)
-            if done:
+            obs, _, terminated, _, _ = self.step(action)
+            if terminated:
                 return False
 
         return True
@@ -133,8 +133,8 @@ class SpawnAttackOperation(Operation):
             action = self.env.action_space.no_op()
             if "attack" in action:
                 action["attack"] = 1
-            obs, _, done, _ = self.step(action)
-            if done:
+            obs, _, terminated, _, _ = self.step(action)
+            if terminated:
                 return True
 
         return True

@@ -2,7 +2,7 @@ from typing import Union
 from copy import deepcopy
 from collections import deque
 
-import gym
+import gymnasium as gym
 import numpy as np
 
 from ..utils import *
@@ -75,18 +75,18 @@ class DeltaInventoryWrapper(gym.Wrapper):
         self._prev_craft_actions = deque(maxlen=1)
 
     def reset(self, **kwargs):
-        observation = self.env.reset(**kwargs)
+        observation, _ = self.env.reset(**kwargs)
         self._prev_inventory = deepcopy(observation["inventory"])
         self._prev_mask = deepcopy(observation["masks"]["craft_smelt"])
         self._prev_craft_actions = deque(maxlen=1)
-        return self.observation(observation, None)
+        return self.observation(observation, None), {}
 
     def step(self, action):
-        observation, reward, done, info = self.env.step(action)
+        observation, reward, terminated, truncated, info = self.env.step(action)
         new_obs = self.observation(observation, action)
         self._prev_inventory = deepcopy(observation["inventory"])
         self._prev_mask = deepcopy(observation["masks"]["craft_smelt"])
-        return new_obs, reward, done, info
+        return new_obs, reward, terminated, truncated, info
 
     def observation(self, observation, action):
         if action is None:

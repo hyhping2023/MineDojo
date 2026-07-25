@@ -45,6 +45,7 @@ class CMDExecutor:
                         self._world.prev_obs,
                         0,
                         self._world.is_terminated,
+                        False,
                         self._world.prev_info,
                     )
                 else:
@@ -83,8 +84,8 @@ class CMDExecutor:
         obs, info = self._world.prev_obs, self._world.prev_info
         for mob, rel_pos in zip(mobs, rel_positions):
             cmd = f"/summon {mob} ~{int(rel_pos[0])} ~{int(rel_pos[1])} ~{int(rel_pos[2])}"
-            obs, _, _, info = self.execute_cmd(cmd, action)
-        return obs, 0, self._world.is_terminated, info
+            obs, _, _, _, info = self.execute_cmd(cmd, action)
+        return obs, 0, self._world.is_terminated, False, info
 
     def set_block(
         self,
@@ -113,12 +114,12 @@ class CMDExecutor:
         obs, info = self._world.prev_obs, self._world.prev_info
         for block, rel_pos in zip(blocks, rel_positions):
             cmd = f"/setblock ~{int(rel_pos[0])} ~{int(rel_pos[1])} ~{int(rel_pos[2])} {block}"
-            obs, _, _, info = self.execute_cmd(cmd, action)
-        return obs, 0, self._world.is_terminated, info
+            obs, _, _, _, info = self.execute_cmd(cmd, action)
+        return obs, 0, self._world.is_terminated, False, info
 
     def clear_inventory(self, action: Optional[dict] = None):
-        obs, _, _, info = self.execute_cmd("/clear", action)
-        return obs, 0, self._world.is_terminated, info
+        obs, _, _, _, info = self.execute_cmd("/clear", action)
+        return obs, 0, self._world.is_terminated, False, info
 
     def set_inventory(
         self, inventory_list: List[InventoryItem], action: Optional[dict] = None
@@ -126,35 +127,35 @@ class CMDExecutor:
         obs, info = self._world.prev_obs, self._world.prev_info
         for inventory_item in inventory_list:
             slot, item_dict = parse_inventory_item(inventory_item)
-            obs, _, _, info = self.execute_cmd(
+            obs, _, _, _, info = self.execute_cmd(
                 f'/replaceitem entity @p {map_slot_number_to_cmd_slot(slot)} minecraft:{item_dict["type"]} {item_dict["quantity"]} {item_dict["metadata"]}',
                 action,
             )
-        return obs, 0, self._world.is_terminated, info
+        return obs, 0, self._world.is_terminated, False, info
 
     def teleport_agent(self, x, y, z, yaw, pitch, action: Optional[dict] = None):
-        obs, _, _, info = self.execute_cmd(f"/tp {x} {y} {z} {yaw} {pitch}", action)
-        return obs, 0, self._world.is_terminated, info
+        obs, _, _, _, info = self.execute_cmd(f"/tp {x} {y} {z} {yaw} {pitch}", action)
+        return obs, 0, self._world.is_terminated, False, info
 
     def kill_agent(self, action: Optional[dict] = None):
-        obs, _, _, info = self.execute_cmd("/kill", action)
-        return obs, 0, self._world.is_terminated, info
+        obs, _, _, _, info = self.execute_cmd("/kill", action)
+        return obs, 0, self._world.is_terminated, False, info
 
     def set_time(self, time: int, action: Optional[dict] = None):
-        obs, _, _, info = self.execute_cmd(f"/time set {time}", action)
-        return obs, 0, self._world.is_terminated, info
+        obs, _, _, _, info = self.execute_cmd(f"/time set {time}", action)
+        return obs, 0, self._world.is_terminated, False, info
 
     def set_weather(self, weather: str, action: Optional[dict] = None):
-        obs, _, _, info = self.execute_cmd(f"/weather {weather}", action)
-        return obs, 0, self._world.is_terminated, info
+        obs, _, _, _, info = self.execute_cmd(f"/weather {weather}", action)
+        return obs, 0, self._world.is_terminated, False, info
 
     def random_teleport(self, max_range: int, action: Optional[dict] = None):
-        obs, _, _, info = self.execute_cmd(
+        obs, _, _, _, info = self.execute_cmd(
             f"/spreadplayers ~ ~ 0 {max_range} false @p", action
         )
-        return obs, 0, self._world.is_terminated, info
+        return obs, 0, self._world.is_terminated, False, info
 
     def save_world(self, action: Optional[dict] = None):
         """Flush all world data to disk via /save-all command."""
-        obs, _, _, info = self.execute_cmd("/save-all", action)
-        return obs, 0, self._world.is_terminated, info
+        obs, _, _, _, info = self.execute_cmd("/save-all", action)
+        return obs, 0, self._world.is_terminated, False, info

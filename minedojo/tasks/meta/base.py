@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import List, Dict, Any, Union, Tuple, Optional
 
-import gym
+import gymnasium as gym
 import numpy as np
 
 from ...sim import MineDojoSim
@@ -84,8 +84,8 @@ class MetaTaskBase(gym.Wrapper):
         Return:
             Agent’s initial observation.
         """
-        obs = self.env.reset()
-        info = self.env.prev_info
+        obs, info = self.env.reset()
+        # info now comes from self.env.reset()
         obs, info = self._after_sim_reset_hook(obs, info)
         self._ini_info_dict = (
             self.env.info_prev_reset or info if self._fast_reset else info
@@ -93,7 +93,7 @@ class MetaTaskBase(gym.Wrapper):
         self._pre_info_dict = deepcopy(info)
         self._elapsed_timesteps = 0
         self._is_successful = False
-        return obs
+        return obs, info
 
     def step(self, action):
         """Run one timestep of the environment’s dynamics. Accepts an action and returns next_obs, reward, done, info.
@@ -108,7 +108,7 @@ class MetaTaskBase(gym.Wrapper):
             - ``bool`` - Whether the episode has ended.
             - ``dict`` - Contains auxiliary diagnostic information (helpful for debugging, and sometimes learning).
         """
-        obs, _, _, info = self.env.step(action)
+        obs, _, terminated, truncated, info = self.env.step(action)
         self._elapsed_timesteps += 1
         reward = self._compute_reward_hook(
             ini_info=self._ini_info_dict,
@@ -121,9 +121,9 @@ class MetaTaskBase(gym.Wrapper):
             cur_info=info,
             elapsed_timesteps=self._elapsed_timesteps,
         )
-        done = self.env.is_terminated or self._is_successful
+        done = terminated or self.env.is_terminated or self._is_successful
         self._pre_info_dict = deepcopy(info)
-        return obs, reward, done, info
+        return obs, reward, done, terminated or truncated, info
 
     def get_prompt(self, **kwargs) -> str:
         """Get the prompt of the task"""
@@ -293,7 +293,7 @@ class ExtraSpawnMetaTaskBase(MetaTaskBase):
                 len(extra_spawn_rate),
                 axis=0,
             )
-            self._extra_spawn_range_space = gym.spaces.Box(
+            self._extra_spawn_range_space = gymnasium.spaces.Box(
                 low=low, high=high, seed=kwargs["seed"]
             )
             self._rng = np.random.default_rng(seed=kwargs["seed"])
@@ -323,7 +323,7 @@ class ExtraSpawnMetaTaskBase(MetaTaskBase):
                 len(initial_mobs),
                 axis=0,
             )
-            self._mob_spawn_range_space = gym.spaces.Box(
+            self._mob_spawn_range_space = gymnasium.spaces.Box(
                 low=low, high=high, seed=kwargs["seed"]
             )
 
@@ -341,9 +341,9 @@ class ExtraSpawnMetaTaskBase(MetaTaskBase):
                     elapsed_timesteps=self._elapsed_timesteps,
                 ):
                     if name in self.by_summon:
-                        obs, _, _, info = self.env.spawn_mobs(name, pos)
+                        obs, _, _, _, info = self.env.spawn_mobs(name, pos)
                     elif name in self.by_setblock:
-                        obs, _, _, info = self.env.set_block(name, pos)
+                        obs, _, _, _, info = self.env.set_block(name, pos)
             return super().step(action=action)
 
     def _after_sim_reset_hook(
@@ -352,7 +352,7 @@ class ExtraSpawnMetaTaskBase(MetaTaskBase):
         obs, info = reset_obs, reset_info
         if len(self._initial_mobs) > 0:
             mobs_rel_positions = self._mob_spawn_range_space.sample()
-            obs, _, _, info = self.env.spawn_mobs(
+            obs, _, _, _, info = self.env.spawn_mobs(
                 self._initial_mobs, mobs_rel_positions
             )
         return obs, info

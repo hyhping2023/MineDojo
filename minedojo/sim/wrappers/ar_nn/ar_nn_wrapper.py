@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-import gym
+import gymnasium as gym
 
 from .ar_masks_wrapper import ARMasksWrapper as _ARMasksWrapper
 from .nn_action_space_wrapper import NNActionSpaceWrapper as _NNActionSpaceWrapper

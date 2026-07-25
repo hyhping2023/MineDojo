@@ -1,7 +1,7 @@
 import math
 from typing import Union, Sequence
 
-import gym
+import gymnasium as gym
 import numpy as np
 
 from ...sim import MineDojoSim
@@ -256,26 +256,26 @@ class NNActionSpaceWrapper(gym.Wrapper):
         return noop
 
     def reset(self, **kwargs):
-        obs = self.env.reset(**kwargs)
+        obs, info = self.env.reset(**kwargs)
         self._inventory_names = obs["inventory"]["name"].copy()
-        return obs
+        return obs, info
 
     def step(self, action: Sequence[int]):
         malmo_action, destroy_item = self.action(action)
         destroy_item, destroy_slot = destroy_item
         if destroy_item:
-            obs, reward, done, info = self.env.set_inventory(
+            obs, reward, terminated, truncated, info = self.env.set_inventory(
                 inventory_list=[
                     InventoryItem(name="air", slot=destroy_slot, quantity=1, variant=0)
                 ],
                 action=malmo_action,
             )
         else:
-            obs, reward, done, info = self.env.step(malmo_action)
+            obs, reward, terminated, truncated, info = self.env.step(malmo_action)
 
         # handle malmo's lags
         if action[5] in {2, 4, 5, 6, 7}:
             for _ in range(2):
-                obs, reward, done, info = self.env.step(self.env.action_space.no_op())
+                obs, reward, terminated, truncated, info = self.env.step(self.env.action_space.no_op())
         self._inventory_names = obs["inventory"]["name"].copy()
-        return obs, reward, done, info
+        return obs, reward, terminated, truncated, info
