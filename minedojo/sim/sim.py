@@ -408,11 +408,11 @@ class MineDojoSim(gym.Env):
         """
         self._rng = np.random.default_rng(seed)
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         """Resets the environment to an initial state and returns an initial observation.
 
         Return:
-            Agent’s initial observation.
+            Agent's initial observation and info dict.
         """
         episode_id = str(uuid.uuid4())
 

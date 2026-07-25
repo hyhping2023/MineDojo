@@ -78,13 +78,13 @@ class MetaTaskBase(gym.Wrapper):
     def is_successful(self):
         return self._is_successful
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         """Resets the environment to an initial state and returns an initial observation.
 
         Return:
-            Agent’s initial observation.
+            Agent's initial observation and info dict.
         """
-        obs, info = self.env.reset()
+        obs, info = self.env.reset(seed=seed, options=options)
         # info now comes from self.env.reset()
         obs, info = self._after_sim_reset_hook(obs, info)
         self._ini_info_dict = (

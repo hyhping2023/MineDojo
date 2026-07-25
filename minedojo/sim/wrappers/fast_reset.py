@@ -65,10 +65,10 @@ class FastResetWrapper(gym.Wrapper):
         self._server_start = False
         self._info_prev_reset = None
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         if not self._server_start:
             self._server_start = True
-            return self.env.reset()
+            return self.env.reset(seed=seed, options=options)
         else:
             for cmd in self._reset_cmds:
                 obs, _, _, _, info = self.env.execute_cmd(cmd)
