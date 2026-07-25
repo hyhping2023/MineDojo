@@ -42,3 +42,6 @@ class ARNNWrapper(gym.Wrapper):
 
     def reverse_action(self, action):
         return self.env.env.env.reverse_action(action)
+
+    def get_prompt(self, **kwargs):
+        return self.env.env.env.env.get_prompt(**kwargs)
