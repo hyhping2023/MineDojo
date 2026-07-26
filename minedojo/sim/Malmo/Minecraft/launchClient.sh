@@ -103,19 +103,45 @@ fi
 cat "$configDir"/malmomodCLIENT.cfg
 
 echo "$runDir"
-# Finally we can launch the Mod, which will load the config file
 
-# Always use Gradle runClient to ensure Forge/Minecraft classpath is complete.
-# The fat jar cannot include Minecraft's own libraries (log4j, lwjgl, etc.)
-# because ForgeGradle manages them internally outside Gradle configurations.
-cmd="./gradlew runClient --stacktrace -Pjvm_debug_port=$jvm_debug_port -PrunDir=$runDir"
+# ---- Launch Minecraft with full classpath ----
+# ForgeGradle's runClient task does not reliably honour the custom runDir config
+# in batch/headless mode, so we launch Java directly. The classpath combines:
+#   1. The fat jar (Malmo mod + its deps)
+#   2. All jars from the Forge/Minecraft Gradle cache (log4j, lwjgl, etc.)
+# This is the same classpath that runClient would assemble, but with full control
+# over the game directory and without Gradle's dev-mode interference.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+FAT_JAR="$SCRIPT_DIR/build/libs/MalmoMod-0.37.0-fat.jar"
+FORGE_VER="1.11.2-13.20.1.2588"
+FORGE_CACHE=$(find "$HOME/.gradle/caches/minecraft" -name "$FORGE_VER" -type d -print -quit 2>/dev/null || true)
+
+declare -a cmd
+
+if [ -z "$FORGE_CACHE" ] || [ ! -f "$FAT_JAR" ]; then
+    echo "First launch: running Gradle to set up Forge/Minecraft cache..." >&2
+    cmd=(./gradlew runClient --stacktrace -Pjvm_debug_port="$jvm_debug_port" -PrunDir="$runDir")
+else
+    # Build classpath: fat jar + all forge/minecraft jars from gradle cache
+    CP="$FAT_JAR"
+    for jar in "$FORGE_CACHE"/*.jar; do
+        [ -f "$jar" ] && CP="$CP:$jar"
+    done
+    if [ -d "$FORGE_CACHE/libraries" ]; then
+        while IFS= read -r -d '' jar; do
+            CP="$CP:$jar"
+        done < <(find "$FORGE_CACHE/libraries" -name "*.jar" -type f -print0 2>/dev/null)
+    fi
+    cd "$runDir"
+    cmd=(java -noverify -cp "$CP" -Dfml.coreMods.load=com.microsoft.Malmo.OverclockingPlugin -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant com.microsoft.Malmo.Launcher.GradleStart)
+fi
 
 if [ "${MINEDOJO_HEADLESS:-}" == "1" ]; then
   if ! command -v xvfb-run &> /dev/null; then
     echo "ERROR: xvfb-run not found but MINEDOJO_HEADLESS=1. Please install xvfb." >&2
     exit 1
   fi
-  xvfb-run -a -s "-screen 0 1024x768x24" $cmd
+  xvfb-run -a -s "-screen 0 1024x768x24" "${cmd[@]}"
 else
-  $cmd
+  "${cmd[@]}"
 fi
