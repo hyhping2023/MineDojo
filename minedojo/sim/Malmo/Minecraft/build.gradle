@@ -371,7 +371,9 @@ task copyModToServer(type: Copy) {
 shadowJar {
     classifier = 'fat'
     mergeServiceFiles()
-    configurations = project.configurations.all.findAll { it.canBeResolved }
+    configurations = project.configurations.all.findAll {
+        it.canBeResolved && it.name != 'shadow' && it.name != 'implementation'
+    }.collect { it }
     manifest {
         attributes "Main-Class": "com.microsoft.Malmo.Launcher.GradleStart"
     }
