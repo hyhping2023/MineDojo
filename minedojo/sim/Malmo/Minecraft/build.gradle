@@ -370,7 +370,7 @@ shadowJar {
     mergeServiceFiles()
     configurations = project.configurations.findAll {
         it.name != 'shadow' && !it.dependencies.empty
-    }
+    }.collect { it }
     manifest {
         attributes "Main-Class": "com.microsoft.Malmo.Launcher.GradleStart"
     }
