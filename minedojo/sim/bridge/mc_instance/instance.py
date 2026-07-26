@@ -72,6 +72,7 @@ class MinecraftInstance:
         self.existing = existing
         self.minecraft_dir = None
         self.instance_dir = None
+        self._runDir = None
         self.owner = None
         self._had_to_clean = False
         self.instance_id = instance_id
@@ -153,6 +154,7 @@ class MinecraftInstance:
 
             self.instance_dir = tempfile.mkdtemp()
             self.minecraft_dir = os.path.join(self.instance_dir, "Minecraft")
+            self._runDir = os.path.join(self.minecraft_dir, "run")
             shutil.copytree(
                 os.path.join(MC_DIR),
                 self.minecraft_dir,
@@ -381,7 +383,7 @@ class MinecraftInstance:
             raise ValueError("TODO")
 
         launch_script = os.path.join(minecraft_dir, launch_script)
-        rundir = os.path.join(minecraft_dir, "run")
+        rundir = self._runDir or os.path.join(minecraft_dir, "run")
 
         cmd = [launch_script, "-port", str(port), "-env", "-runDir", rundir]
         if self._seed:
