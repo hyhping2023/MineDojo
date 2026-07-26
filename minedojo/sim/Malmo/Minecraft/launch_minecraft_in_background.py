@@ -55,9 +55,6 @@ def launch_minecraft_in_background(
                 "- will assume Minecraft is running.",
             )
             continue
-        replaceable_arg = " -replaceable " if replaceable else ""
-        scorepolicy_arg = " -scorepolicy " if score else ""
-        scorepolicy_value = " 2 " if score else ""
         print(
             "Nothing is listening on port",
             port,
@@ -68,43 +65,45 @@ def launch_minecraft_in_background(
                 minecraft_path + "/launchClient.bat",
                 "-port",
                 str(port),
-                replaceable_arg.strip(),
-                scorepolicy_arg.strip(),
-                scorepolicy_value.strip(),
             ]
+            if replaceable:
+                args.append("-replaceable")
+            if score:
+                args.extend(["-scorepolicy", "2"])
             p = subprocess.Popen(
-                [arg for arg in args if arg != ""],
+                args,
                 creationflags=subprocess.CREATE_NEW_CONSOLE,
                 close_fds=True,
             )
         elif sys.platform == "darwin":
             # Launch Minecraft directly as subprocess (same as Linux).
             # Previously used Terminal.app which broke stdout piping.
-            cmd = (
-                minecraft_path
-                + "/launchClient.sh -port "
-                + str(port)
-                + replaceable_arg
-                + scorepolicy_arg
-                + scorepolicy_value
-            )
+            cmd = [
+                minecraft_path + "/launchClient.sh",
+                "-port", str(port),
+            ]
+            if replaceable:
+                cmd.append("-replaceable")
+            if score:
+                cmd.extend(["-scorepolicy", "2"])
             p = subprocess.Popen(
                 cmd,
-                shell=True,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
         else:
+            cmd = [
+                minecraft_path + "/launchClient.sh",
+                "-port", str(port),
+            ]
+            if replaceable:
+                cmd.append("-replaceable")
+            if score:
+                cmd.extend(["-scorepolicy", "2"])
             p = subprocess.Popen(
-                minecraft_path
-                + "/launchClient.sh -port "
-                + str(port)
-                + replaceable_arg
-                + scorepolicy_arg
-                + scorepolicy_value,
+                cmd,
                 close_fds=True,
-                shell=True,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

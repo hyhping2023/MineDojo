@@ -177,7 +177,10 @@ class MinecraftInstance:
             server_ready = False
 
             while True:
-                mine_log_encoding = locale.getpreferredencoding(False)
+                try:
+                    mine_log_encoding = locale.getpreferredencoding(False)
+                except locale.Error:
+                    mine_log_encoding = "utf-8"
                 line = self.minecraft_process.stdout.readline().decode(
                     mine_log_encoding
                 )
@@ -448,8 +451,11 @@ class MinecraftInstance:
             # kill the minecraft process and its subprocesses
             try:
                 shutil.rmtree(self.instance_dir)
-            except:
-                print("Failed to delete the temporary minecraft directory.")
+            except OSError:
+                self._logger.error(
+                    "Failed to delete the temporary minecraft directory: %s",
+                    self.instance_dir,
+                )
 
             if self in InstanceManager._instance_pool:
                 InstanceManager._instance_pool.remove(self)

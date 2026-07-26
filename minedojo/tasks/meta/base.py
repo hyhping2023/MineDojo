@@ -257,7 +257,7 @@ class ExtraSpawnMetaTaskBase(MetaTaskBase):
                     name in self.by_summon or name in self.by_setblock
                     for name in extra_spawn_rate.keys()
                 ]
-            ), f"{extra_spawn_rate.keys()} should belong to either {self.by_summony} or {self.by_setblock}"
+            ), f"{extra_spawn_rate.keys()} should belong to either {self.by_summon} or {self.by_setblock}"
             if extra_spawn_condition is None:
                 extra_spawn_condition = {
                     k: always_satisfy_condition for k in extra_spawn_rate.keys()

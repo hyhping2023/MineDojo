@@ -11,22 +11,36 @@ def get_doi(link):
     return response.url
 
 
-DOWNLOAD_URLS = {
+_RAW_DOWNLOAD_URLS = {
     "youtube": {
-        "full": f"{get_doi('https://doi.org/10.5281/zenodo.6641142')}/files/youtube_full.json",
-        "tutorial": f"{get_doi('https://doi.org/10.5281/zenodo.6641142')}/files/youtube_tutorial.json",
+        "full": "https://doi.org/10.5281/zenodo.6641142/files/youtube_full.json",
+        "tutorial": "https://doi.org/10.5281/zenodo.6641142/files/youtube_tutorial.json",
     },
     "wiki": {
-        "full": f"{get_doi('https://doi.org/10.5281/zenodo.6640448')}/files/wiki_full.zip",
-        "samples": f"{get_doi('https://doi.org/10.5281/zenodo.6640448')}/files/wiki_samples.zip",
+        "full": "https://doi.org/10.5281/zenodo.6640448/files/wiki_full.zip",
+        "samples": "https://doi.org/10.5281/zenodo.6640448/files/wiki_samples.zip",
     },
     "reddit": {
-        "full": f"{get_doi('https://doi.org/10.5281/zenodo.6641114')}/files/reddit.json",
+        "full": "https://doi.org/10.5281/zenodo.6641114/files/reddit.json",
     },
 }
 
+DOWNLOAD_URLS = {}
+
+
+def _resolve_urls():
+    """Lazily resolve DOI URLs to actual download URLs (requires network)."""
+    if DOWNLOAD_URLS:
+        return
+    for source, variants in _RAW_DOWNLOAD_URLS.items():
+        resolved = {}
+        for variant, doi_url in variants.items():
+            resolved[variant] = get_doi(doi_url)
+        DOWNLOAD_URLS[source] = resolved
+
 
 def get_fn(source: str = "youtube", download_dir: str = None, full: bool = True):
+    _resolve_urls()
     url = DOWNLOAD_URLS[source][
         "full" if full else "tutorial" if source == "youtube" else "samples"
     ]

@@ -3,7 +3,6 @@ buildscript {
     repositories {
 
         maven { url 'https://jitpack.io' }
-        jcenter()
         mavenCentral()
         maven {
             name = "forge"
@@ -32,8 +31,8 @@ buildscript {
         compileClasspath {
             resolutionStrategy.eachDependency { DependencyResolveDetails details ->
                 if (details.requested.group == 'org.apache.logging.log4j') {
-                    details.useVersion '2.16.0'
-                    details.because 'zero-day-exploits on log4j <2.15.0'
+                    details.useVersion '2.17.1'
+                    details.because 'zero-day-exploits on log4j <2.15.0; fix CVE-2021-45105 with >=2.17.1'
                 }
             }
         }
@@ -145,8 +144,8 @@ if (project.hasProperty("jvm_debug_port")) {
 exec.getOutputs().upToDateWhen( { return false } )
 
 dependencies {
-    compile 'org.spongepowered:mixin:0.7.5-SNAPSHOT'
-    compile 'org.jetbrains:annotations:16.0.2'
+    implementation 'org.spongepowered:mixin:0.7.5-SNAPSHOT'
+    implementation 'org.jetbrains:annotations:16.0.2'
 }
 
 processResources

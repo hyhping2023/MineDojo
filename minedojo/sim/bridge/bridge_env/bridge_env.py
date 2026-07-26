@@ -198,7 +198,7 @@ class BridgeEnv:
                         instance.client_socket_close()
                         raise Exception("too long waiting for first observation")
                     time.sleep(0.1)
-                    # FIXME - shouldn't we error or retry here?
+                    continue
 
                 raw = json.loads(info) if info is not None else {}
                 raw["pov"] = obs
@@ -273,7 +273,7 @@ class BridgeEnv:
                 # Try to disconnect gracefully.
                 try:
                     instance.client_socket_send_message("<Disconnect/>".encode())
-                except:
+                except Exception:
                     pass
                 instance.client_socket_shutdown(socket.SHUT_RDWR)
         except (BrokenPipeError, OSError, socket.error):
