@@ -144,8 +144,8 @@ if (project.hasProperty("jvm_debug_port")) {
 exec.getOutputs().upToDateWhen( { return false } )
 
 dependencies {
-    implementation 'org.spongepowered:mixin:0.7.5-SNAPSHOT'
-    implementation 'org.jetbrains:annotations:16.0.2'
+    compile 'org.spongepowered:mixin:0.7.5-SNAPSHOT'
+    compile 'org.jetbrains:annotations:16.0.2'
 }
 
 processResources
@@ -369,7 +369,7 @@ shadowJar {
     classifier = 'fat'
     mergeServiceFiles()
     configurations = project.configurations.findAll {
-        it.name != 'shadow' && !it.dependencies.empty
+        it.name != 'shadow' && it.name != 'implementation' && !it.dependencies.empty
     }.collect { it }
     manifest {
         attributes "Main-Class": "com.microsoft.Malmo.Launcher.GradleStart"
