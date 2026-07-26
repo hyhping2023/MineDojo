@@ -363,14 +363,15 @@ task copyModToServer(type: Copy) {
 }
 
 // Package forge gradle and all dependencies into a fat jar for standalone execution.
-// ForgeGradle stores Minecraft libs (log4j, etc.) in custom configurations
-// that are not in `runtime`, so we include all non-empty configurations.
+// ForgeGradle stores Minecraft libs (log4j, launchwrapper, LWJGL, MC, Forge) in
+// custom configurations that have no DECLARED dependencies (they are added
+// programmatically), so filtering on `!it.dependencies.empty` skips them and
+// produces an incomplete ~29M jar. Bundle every resolvable configuration
+// instead so the fat jar is self-contained (~90M) and `java -jar` works.
 shadowJar {
     classifier = 'fat'
     mergeServiceFiles()
-    configurations = project.configurations.findAll {
-        it.name != 'shadow' && it.name != 'implementation' && !it.dependencies.empty
-    }.collect { it }
+    configurations = project.configurations.all.findAll { it.canBeResolved }
     manifest {
         attributes "Main-Class": "com.microsoft.Malmo.Launcher.GradleStart"
     }
