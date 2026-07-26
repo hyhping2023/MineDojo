@@ -122,18 +122,29 @@ if [ -z "$FORGE_CACHE" ] || [ ! -f "$FAT_JAR" ]; then
     echo "First launch: running Gradle to set up Forge/Minecraft cache..." >&2
     cmd=(./gradlew runClient --stacktrace -Pjvm_debug_port="$jvm_debug_port" -PrunDir="$runDir")
 else
-    # Build classpath: fat jar + all forge/minecraft jars from gradle cache
+    # Build classpath: fat jar + all Minecraft/Forge/Log4j jars from Gradle cache
     CP="$FAT_JAR"
+    # 1. Top-level jars from forge cache
     for jar in "$FORGE_CACHE"/*.jar; do
         [ -f "$jar" ] && CP="$CP:$jar"
     done
+    # 2. Nested library jars from forge cache (if any)
     if [ -d "$FORGE_CACHE/libraries" ]; then
         while IFS= read -r -d '' jar; do
             CP="$CP:$jar"
-        done < <(find "$FORGE_CACHE/libraries" -name "*.jar" -type f -print0 2>/dev/null)
+        done < <(find "$FORGE_CACHE/libraries" -name "*.jar" -type f -print0 2>/dev/null || true)
     fi
+    # 3. All jars from minecraft cache (launchwrapper, lwjgl utils, etc.)
+    while IFS= read -r -d '' jar; do
+        CP="$CP:$jar"
+    done < <(find "$HOME/.gradle/caches/minecraft" -name "*.jar" -type f -print0 2>/dev/null || true)
+    # 4. Log4j from gradle module cache (not in minecraft cache above)
+    while IFS= read -r -d '' jar; do
+        CP="$CP:$jar"
+    done < <(find "$HOME/.gradle/caches/modules-2" -path "*/log4j*" -name "*.jar" -not -name "*sources*" -not -name "*javadoc*" -type f -print0 2>/dev/null || true)
+
     cd "$runDir"
-    cmd=(java -noverify -cp "$CP" -Dfml.coreMods.load=com.microsoft.Malmo.OverclockingPlugin -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant com.microsoft.Malmo.Launcher.GradleStart)
+    cmd=(java -noverify -cp "$CP" -Dfml.coreMods.load=com.microsoft.Malmo.OverclockingPlugin -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -Djava.library.path="$FORGE_CACHE/natives" net.minecraft.launchwrapper.Launch --tweakClass net.minecraftforge.fml.common.launcher.FMLTweaker --tweakClass com.microsoft.Malmo.Launcher.tweakers.CoremodTweaker --gameDir "$runDir")
 fi
 
 if [ "${MINEDOJO_HEADLESS:-}" == "1" ]; then
