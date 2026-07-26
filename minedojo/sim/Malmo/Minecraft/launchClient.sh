@@ -105,26 +105,41 @@ cat "$configDir"/malmomodCLIENT.cfg
 echo "$runDir"
 
 # ---- Launch Minecraft with full classpath ----
-# ForgeGradle's runClient task does not reliably honour the custom runDir config
-# in batch/headless mode, so we launch Java directly. The classpath combines:
-#   1. The fat jar (Malmo mod + its deps)
-#   2. All jars from the Forge/Minecraft Gradle cache (log4j, lwjgl, etc.)
-# This is the same classpath that runClient would assemble, but with full control
-# over the game directory and without Gradle's dev-mode interference.
+# We launch Java directly with a classpath assembled from the Gradle caches.
+# ForgeGradle's runClient task is NOT used: it launches via GradleStart, whose
+# runtime classpath is missing log4j and fails with
+#   NoClassDefFoundError: org/apache/logging/log4j/LogManager
+# at GradleStartCommon.<clinit>. The manual classpath below is the same set of
+# jars runClient would assemble, plus explicit log4j, with full control over the
+# game directory.
+#
+# Classpath:
+#   1. The fat jar (Malmo mod + deps), built via `gradlew shadowJar` if absent
+#   2. All jars from the Forge/Minecraft Gradle cache (forge, minecraft, launchwrapper)
+#   3. log4j from the Gradle module cache (a single consistent version)
+#   4. LWJGL natives via -Djava.library.path
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FAT_JAR="$SCRIPT_DIR/build/libs/MalmoMod-0.37.0-fat.jar"
 FORGE_VER="1.11.2-13.20.1.2588"
+MC_VER="${FORGE_VER%%-*}"   # 1.11.2
 FORGE_CACHE=$(find "$HOME/.gradle/caches/minecraft" -name "$FORGE_VER" -type d -print -quit 2>/dev/null || true)
 
-declare -a cmd
+# The fat jar is normally pre-built in the source tree by the Python launcher
+# (instance.py) and referenced via $MALMO_FAT_JAR. Fall back to a local copy
+# (e.g. when this script is run manually) and build it via shadowJar if missing.
+FAT_JAR="${MALMO_FAT_JAR:-$SCRIPT_DIR/build/libs/MalmoMod-0.37.0-fat.jar}"
+if [ ! -f "$FAT_JAR" ]; then
+    echo "Building MalmoMod fat jar via Gradle (first launch)..." >&2
+    if ! ./gradlew shadowJar --stacktrace; then
+        echo "ERROR: failed to build MalmoMod fat jar." >&2
+        exit 1
+    fi
+    FAT_JAR="$SCRIPT_DIR/build/libs/MalmoMod-0.37.0-fat.jar"
+fi
 
-if [ -z "$FORGE_CACHE" ] || [ ! -f "$FAT_JAR" ]; then
-    echo "First launch: running Gradle to set up Forge/Minecraft cache..." >&2
-    cmd=(./gradlew runClient --stacktrace -Pjvm_debug_port="$jvm_debug_port" -PrunDir="$runDir")
-else
-    # Build classpath: fat jar + all Minecraft/Forge/Log4j jars from Gradle cache
-    CP="$FAT_JAR"
-    # 1. Top-level jars from forge cache
+# Assemble the classpath: fat jar + Minecraft/Forge jars from the Gradle cache.
+CP="$FAT_JAR"
+# 1. Top-level jars from forge cache
+if [ -n "$FORGE_CACHE" ]; then
     for jar in "$FORGE_CACHE"/*.jar; do
         [ -f "$jar" ] && CP="$CP:$jar"
     done
@@ -134,18 +149,43 @@ else
             CP="$CP:$jar"
         done < <(find "$FORGE_CACHE/libraries" -name "*.jar" -type f -print0 2>/dev/null || true)
     fi
-    # 3. All jars from minecraft cache (launchwrapper, lwjgl utils, etc.)
-    while IFS= read -r -d '' jar; do
-        CP="$CP:$jar"
-    done < <(find "$HOME/.gradle/caches/minecraft" -name "*.jar" -type f -print0 2>/dev/null || true)
-    # 4. Log4j from gradle module cache (not in minecraft cache above)
-    while IFS= read -r -d '' jar; do
-        CP="$CP:$jar"
-    done < <(find "$HOME/.gradle/caches/modules-2" -path "*/log4j*" -name "*.jar" -not -name "*sources*" -not -name "*javadoc*" -type f -print0 2>/dev/null || true)
-
-    cd "$runDir"
-    cmd=(java -noverify -cp "$CP" -Dfml.coreMods.load=com.microsoft.Malmo.OverclockingPlugin -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -Djava.library.path="$FORGE_CACHE/natives" net.minecraft.launchwrapper.Launch --tweakClass net.minecraftforge.fml.common.launcher.FMLTweaker --tweakClass com.microsoft.Malmo.Launcher.tweakers.CoremodTweaker --gameDir "$runDir")
 fi
+# 3. All jars from minecraft cache (minecraft, minecraft_merged, launchwrapper, etc.)
+while IFS= read -r -d '' jar; do
+    CP="$CP:$jar"
+done < <(find "$HOME/.gradle/caches/minecraft" -name "*.jar" -type f -print0 2>/dev/null || true)
+# 4. log4j from gradle module cache — pick ONE consistent version to avoid
+#    api/core version mismatches. Prefer 2.17.1 (forced by build.gradle);
+#    fall back to the highest cached version.
+LOG4J_VER="2.17.1"
+LOG4J_API=$(find "$HOME/.gradle/caches/modules-2" -path "*/log4j-api/$LOG4J_VER/*" -name "log4j-api-$LOG4J_VER.jar" -print -quit 2>/dev/null || true)
+LOG4J_CORE=$(find "$HOME/.gradle/caches/modules-2" -path "*/log4j-core/$LOG4J_VER/*" -name "log4j-core-$LOG4J_VER.jar" -print -quit 2>/dev/null || true)
+if [ -z "$LOG4J_API" ] || [ -z "$LOG4J_CORE" ]; then
+    LOG4J_API=$(find "$HOME/.gradle/caches/modules-2" -path "*/log4j-api/*" -name "log4j-api-*.jar" ! -name "*sources*" ! -name "*javadoc*" -print 2>/dev/null | sort -V | tail -1)
+    LOG4J_CORE=$(find "$HOME/.gradle/caches/modules-2" -path "*/log4j-core/*" -name "log4j-core-*.jar" ! -name "*sources*" ! -name "*javadoc*" -print 2>/dev/null | sort -V | tail -1)
+fi
+[ -n "$LOG4J_API" ] && CP="$CP:$LOG4J_API"
+[ -n "$LOG4J_CORE" ] && CP="$CP:$LOG4J_CORE"
+
+# LWJGL natives: ForgeGradle extracts them to minecraft/net/minecraft/natives/<mcver>/,
+# NOT to $FORGE_CACHE/natives.
+NATIVES_DIR="$HOME/.gradle/caches/minecraft/net/minecraft/natives/$MC_VER"
+if [ ! -d "$NATIVES_DIR" ]; then
+    NATIVES_DIR=$(find "$HOME/.gradle/caches/minecraft/net/minecraft/natives" -mindepth 1 -maxdepth 1 -type d -print -quit 2>/dev/null || true)
+fi
+if [ ! -d "$NATIVES_DIR" ]; then
+    echo "ERROR: LWJGL natives directory not found under ~/.gradle/caches/minecraft/net/minecraft/natives/." >&2
+    echo "       Run './gradlew extractNatives' first." >&2
+    exit 1
+fi
+
+cd "$runDir"
+JAVA_ARGS=(-noverify -cp "$CP" -Dfml.coreMods.load=com.microsoft.Malmo.OverclockingPlugin -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant "-Djava.library.path=$NATIVES_DIR")
+if [ "$jvm_debug_port" -gt 0 ]; then
+    JAVA_ARGS=("-Xdebug" "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=$jvm_debug_port" "${JAVA_ARGS[@]}")
+fi
+declare -a cmd
+cmd=(java "${JAVA_ARGS[@]}" net.minecraft.launchwrapper.Launch --tweakClass net.minecraftforge.fml.common.launcher.FMLTweaker --tweakClass com.microsoft.Malmo.Launcher.tweakers.CoremodTweaker --gameDir "$runDir")
 
 if [ "${MINEDOJO_HEADLESS:-}" == "1" ]; then
   if ! command -v xvfb-run &> /dev/null; then

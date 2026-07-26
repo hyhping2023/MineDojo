@@ -77,6 +77,7 @@ class MinecraftInstance:
         self.instance_id = instance_id
         self._seed = seed
         self._target_port = port
+        self._fat_jar = None
 
         self._setup_logging()
 
@@ -143,12 +144,19 @@ class MinecraftInstance:
             if not port:
                 port = InstanceManager._get_valid_port()
 
+            # Ensure the MalmoMod fat jar exists in the source tree. It is needed
+            # by launchClient.sh's manual java -cp launch path and is NOT part of
+            # the source tree, so build it once via `gradlew shadowJar`. The path
+            # is forwarded to launchClient.sh via the MALMO_FAT_JAR env var so the
+            # (large) build/ directory does not need to be copied into the temp dir.
+            self._fat_jar = self._ensure_fat_jar_built()
+
             self.instance_dir = tempfile.mkdtemp()
             self.minecraft_dir = os.path.join(self.instance_dir, "Minecraft")
             shutil.copytree(
                 os.path.join(MC_DIR),
                 self.minecraft_dir,
-                ignore=shutil.ignore_patterns("**.lock"),
+                ignore=shutil.ignore_patterns("build", "**.lock"),
             )
             shutil.copytree(
                 os.path.join(SCHEMAS_DIR),
@@ -392,15 +400,62 @@ class MinecraftInstance:
             if "linux" in str(sys.platform) or sys.platform == "darwin"
             else None
         )
+        # Pass the pre-built fat jar path to launchClient.sh so it does not need
+        # to find (or rebuild) the fat jar inside the temp copy.
+        env = os.environ.copy()
+        if self._fat_jar:
+            env["MALMO_FAT_JAR"] = self._fat_jar
         minecraft_process = psutil.Popen(
             cmd,
             cwd=MC_DIR,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             # use process group, see http://stackoverflow.com/a/4791612/18576
             preexec_fn=preexec_fn,
         )
         return minecraft_process
+
+    def _ensure_fat_jar_built(self):
+        """Build the MalmoMod fat jar in the source tree if it is missing.
+
+        The fat jar (MalmoMod-<version>-fat.jar, produced by the `shadowJar`
+        Gradle task) is required by launchClient.sh's manual java -cp launch
+        path. It is a build artifact and not part of the source tree, so on the
+        first launch we build it once in MC_DIR and reuse it thereafter. The
+        path is forwarded to launchClient.sh via MALMO_FAT_JAR so the temp copy
+        never needs to contain (or rebuild) it.
+
+        Returns the absolute path to the fat jar.
+        """
+        fat_jar = os.path.join(
+            MC_DIR, "build", "libs", f"MalmoMod-{MALMO_VERSION}-fat.jar"
+        )
+        if os.path.exists(fat_jar):
+            return fat_jar
+
+        gradlew = os.path.join(MC_DIR, "gradlew")
+        if not os.path.exists(gradlew):
+            raise RuntimeError(
+                f"gradlew not found at {gradlew}; cannot build MalmoMod fat jar."
+            )
+        self._logger.info(
+            "Building MalmoMod fat jar via Gradle (first launch, may take a while)..."
+        )
+        proc = subprocess.run(
+            [gradlew, "shadowJar", "--stacktrace"],
+            cwd=MC_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        if proc.returncode != 0 or not os.path.exists(fat_jar):
+            raise RuntimeError(
+                "Failed to build MalmoMod fat jar via `gradlew shadowJar`. "
+                "Gradle output:\n"
+                + proc.stdout.decode(errors="replace")
+            )
+        self._logger.info(f"MalmoMod fat jar built at {fat_jar}")
+        return fat_jar
 
     @staticmethod
     def _kill_minecraft_via_malmoenv(host, port):
