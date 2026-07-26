@@ -2479,6 +2479,18 @@
         </xs:complexType>
     </xs:element>
 
+    <xs:element name="ObservationFromGuiScreen">
+        <xs:annotation>
+            <xs:documentation>
+                When present, the Mod will return observations describing the current GUI screen state.
+                Returns two JSON fields: {{{ current_gui }}} (string: "none", "trade", "enchant", "brewing",
+                "anvil", "crafting", or "chest") and {{{ gui_slots }}} (array of slot entries for container GUIs).
+                Used by the MineDojo operations framework for GUI interactions (trade, enchant, brew, anvil, chest).
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType/>
+    </xs:element>
+
     <xs:complexType name="RayOffset">
         <xs:annotation>
             <xs:documentation>
