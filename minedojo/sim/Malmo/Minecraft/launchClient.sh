@@ -104,23 +104,11 @@ cat "$configDir"/malmomodCLIENT.cfg
 
 echo "$runDir"
 # Finally we can launch the Mod, which will load the config file
-# ./gradlew makeStart
 
-#    ./gradlew setupDecompWorkspace
-#    ./gradlew build 
-# gradle does not respect --gradle-user-home when it comes to where to download itself
-# rather, it is set in gradle.properties and is controlled by an env variable
-# If build/libs/MalmoMod-0.37.0-fat.jar does not exist change command to 'test'
-echo "${MINEDOJO_FORCE_BUILD:-}"
-
-if [ ! -e build/libs/MalmoMod-0.37.0-fat.jar ] || [ "${MINEDOJO_FORCE_BUILD:-}" == "1" ]; then
-    echo "Building Malmo mod via Gradle..."
-    cmd="./gradlew runClient --stacktrace -Pjvm_debug_port=$jvm_debug_port -PrunDir=$runDir"
-else
-    export GRADLE_USER_HOME="${runDir}/gradle"
-    cmd="java -noverify -Dfml.coreMods.load=com.microsoft.Malmo.OverclockingPlugin -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -jar ${runDir}/../build/libs/MalmoMod-0.37.0-fat.jar"
-fi
-# If build/libs/MalmoMod-0.37.0-fat.jar does not exist change command to 'test'
+# Always use Gradle runClient to ensure Forge/Minecraft classpath is complete.
+# The fat jar cannot include Minecraft's own libraries (log4j, lwjgl, etc.)
+# because ForgeGradle manages them internally outside Gradle configurations.
+cmd="./gradlew runClient --stacktrace -Pjvm_debug_port=$jvm_debug_port -PrunDir=$runDir"
 
 if [ "${MINEDOJO_HEADLESS:-}" == "1" ]; then
   if ! command -v xvfb-run &> /dev/null; then
