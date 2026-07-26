@@ -78,14 +78,9 @@ def launch_minecraft_in_background(
                 close_fds=True,
             )
         elif sys.platform == "darwin":
-            # Can't pass parameters to launchClient via Terminal.app, so create a small launch
-            # script instead.
-            # (Launching a process to run the terminal app to run a small launch script to run
-            # the launchClient script to run Minecraft... is it possible that this is not the most
-            # straightforward way to go about things?)
-            launcher_file = "/tmp/launcher_" + str(os.getpid()) + ".sh"
-            tmp_file = open(launcher_file, "w")
-            tmp_file.write(
+            # Launch Minecraft directly as subprocess (same as Linux).
+            # Previously used Terminal.app which broke stdout piping.
+            cmd = (
                 minecraft_path
                 + "/launchClient.sh -port "
                 + str(port)
@@ -93,9 +88,13 @@ def launch_minecraft_in_background(
                 + scorepolicy_arg
                 + scorepolicy_value
             )
-            tmp_file.close()
-            os.chmod(launcher_file, 0o700)
-            p = subprocess.Popen(["open", "-a", "Terminal.app", launcher_file])
+            p = subprocess.Popen(
+                cmd,
+                shell=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
         else:
             p = subprocess.Popen(
                 minecraft_path
