@@ -202,40 +202,48 @@ class BridgeEnv:
             any_done = False
             for i, instance in enumerate(self._instances):
                 st_time = time.time()
-                instance.client_socket_send_message(peek_message.encode())
-                obs = instance.client_socket_recv_message()
-                info_raw = instance.client_socket_recv_message()
-                reply = instance.client_socket_recv_message()
+                # Retry the SAME instance until it responds or MAX_WAIT elapses.
+                # (A plain `continue` in the for-loop would skip to the next
+                # instance and leave all_obs empty for single-agent envs,
+                # causing a KeyError: 0 at the caller.)
+                while True:
+                    instance.client_socket_send_message(peek_message.encode())
+                    obs = instance.client_socket_recv_message()
+                    info_raw = instance.client_socket_recv_message()
+                    reply = instance.client_socket_recv_message()
 
-                # If any of the three recvs came back None the mission did not
-                # start properly (e.g. ERROR_CANNOT_CREATE_WORLD — Minecraft
-                # could not load the world snapshot). Retry briefly in case MC
-                # is still spinning up, then surface a clear error instead of
-                # crashing on None.decode() / struct.unpack(None).
-                if (
-                    obs is None
-                    or (hasattr(obs, "__len__") and len(obs) == 0)
-                    or info_raw is None
-                    or reply is None
-                ):
-                    if time.time() - st_time > MAX_WAIT:
-                        instance.client_socket_close()
-                        raise RuntimeError(
-                            "Minecraft did not respond to the first observation "
-                            "query (recv returned None) — the mission likely failed "
-                            "to start, e.g. ERROR_CANNOT_CREATE_WORLD. Check the "
-                            "Minecraft logs (snapshot missing/corrupt?)."
-                        )
-                    time.sleep(0.1)
-                    continue
+                    # If any of the three recvs came back None/empty the mission
+                    # did not start properly (e.g. ERROR_CANNOT_CREATE_WORLD, or
+                    # VillageSpawnDecorator could not find a village). Retry
+                    # briefly in case MC is still spinning up, then surface a
+                    # clear error instead of crashing on None.decode() /
+                    # struct.unpack(None) / returning an empty dict.
+                    if (
+                        obs is None
+                        or (hasattr(obs, "__len__") and len(obs) == 0)
+                        or info_raw is None
+                        or reply is None
+                    ):
+                        if time.time() - st_time > MAX_WAIT:
+                            instance.client_socket_close()
+                            raise RuntimeError(
+                                "Minecraft did not respond to the first observation "
+                                "query (recv returned None/empty) — the mission likely "
+                                "failed to start (e.g. ERROR_CANNOT_CREATE_WORLD, or "
+                                "VillageSpawnDecorator could not find a village for "
+                                "this world seed). Check the Minecraft logs."
+                            )
+                        time.sleep(0.1)
+                        continue  # retry the SAME instance
 
-                info = info_raw.decode("utf-8")
-                (done,) = struct.unpack("!b", reply)
-                any_done = any_done or (done == 1)
+                    info = info_raw.decode("utf-8")
+                    (done,) = struct.unpack("!b", reply)
+                    any_done = any_done or (done == 1)
 
-                raw = json.loads(info) if info is not None else {}
-                raw["pov"] = obs
-                all_obs[i] = raw
+                    raw = json.loads(info) if info is not None else {}
+                    raw["pov"] = obs
+                    all_obs[i] = raw
+                    break  # got valid obs for this instance — next instance
             self._terminated = any_done
             if self._terminated:
                 raise RuntimeError(

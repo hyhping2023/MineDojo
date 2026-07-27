@@ -417,7 +417,15 @@ class MineDojoSim(gym.Env):
         episode_id = str(uuid.uuid4())
 
         xml = etree.fromstring(self._sim_spec.to_xml(episode_id))
-        raw_obs = self._bridge_env.reset(episode_id, [xml])[0]
+        all_obs = self._bridge_env.reset(episode_id, [xml])
+        if not all_obs:
+            raise RuntimeError(
+                "Environment reset produced no observation — the Minecraft "
+                "mission failed to start (check the MC logs for "
+                "ERROR_CANNOT_CREATE_WORLD, a missing/corrupt world snapshot, "
+                "or VillageSpawnDecorator failing to find a village)."
+            )
+        raw_obs = all_obs[0]
         obs, info = self._process_raw_obs(raw_obs)
         self._prev_obs, self._prev_info = deepcopy(obs), deepcopy(info)
         return obs, info
