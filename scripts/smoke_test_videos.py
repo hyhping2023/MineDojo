@@ -1,8 +1,9 @@
 """Smoke test: generate one example video per world snapshot scene.
 
-Submits a short, voxel-free operation sequence (camera turn + strafe) for each
-of the 7 scene types so you can eyeball whether the pipeline (snapshot load ->
-MC launch -> frame capture -> H.264 encode) is working end-to-end.
+Submits a short, scene-appropriate task for each of the 7 scene types so you
+can eyeball whether the pipeline (snapshot load -> MC launch -> frame capture
+-> H.264 encode) is working end-to-end, and that the agent performs a visible
+action (combat / entity spawn / inventory) rather than just turning.
 
 Usage::
 
@@ -25,15 +26,43 @@ from minedojo.workers.scheduler import TaskScheduler
 
 logger = logging.getLogger(__name__)
 
-# Voxel-free movement sequence: visible camera + strafe action, works in every
-# scene without use_voxel=True (navigate would be a no-op without voxels).
-SMOKE_OPERATIONS = [
-    ("look_at", {"yaw": 90, "pitch": 0}),
-    ("strafe", {"direction": "right", "steps": 25}),
-    ("look_at", {"yaw": 270, "pitch": 0}),
-    ("strafe", {"direction": "left", "steps": 25}),
-    ("look_at", {"yaw": 0, "pitch": 0}),
-]
+# Per-scene voxel-free task sequences that produce visible, complete actions.
+# navigate / mine_block / chop_tree require use_voxel=True (not enabled in the
+# worker), so they're no-ops and avoided here. spawn_attack spawns a mob and
+# fights it; spawn_entity spawns a mob to look at; open_inventory opens the
+# inventory GUI.
+SCENE_TASKS = {
+    "plains": [
+        ("spawn_attack", {"mob": "minecraft:zombie", "rel_pos": [5, 0, 0],
+                          "weapon": "diamond_sword", "attack_steps": 30}),
+    ],
+    "forest": [
+        ("spawn_attack", {"mob": "minecraft:zombie", "rel_pos": [5, 0, 0],
+                          "weapon": "diamond_sword", "attack_steps": 30}),
+    ],
+    "extreme_hills": [
+        ("spawn_attack", {"mob": "minecraft:skeleton", "rel_pos": [5, 0, 0],
+                          "weapon": "iron_sword", "attack_steps": 30}),
+    ],
+    "village": [
+        ("spawn_attack", {"mob": "minecraft:zombie", "rel_pos": [5, 0, 0],
+                          "weapon": "diamond_sword", "attack_steps": 30}),
+    ],
+    "cave": [
+        ("spawn_attack", {"mob": "minecraft:spider", "rel_pos": [4, 0, 0],
+                          "weapon": "iron_sword", "attack_steps": 30}),
+    ],
+    "water": [
+        ("spawn_entity", {"entity": "minecraft:squid", "rel_pos": [3, 0, 0]}),
+        ("look_at", {"yaw": 90, "pitch": 0}),
+        ("look_at", {"yaw": 0, "pitch": 0}),
+    ],
+    "gui_item": [
+        ("open_inventory", {}),
+        ("look_at", {"yaw": 90, "pitch": 0}),
+        ("look_at", {"yaw": 0, "pitch": 0}),
+    ],
+}
 
 
 def run_smoke_test(snapshots_dir, output_dir, n_workers=4, image_size=(480, 854)):
@@ -47,11 +76,12 @@ def run_smoke_test(snapshots_dir, output_dir, n_workers=4, image_size=(480, 854)
 
     scene_types = list(SCENE_CONFIGS.keys())
     for scene_type in scene_types:
+        operations = SCENE_TASKS.get(scene_type, [("open_inventory", {})])
         scheduler.submit(VideoTask(
             task_id=f"smoke_{scene_type}",
             scene_type=scene_type,
-            operations=SMOKE_OPERATIONS,
-            max_steps=200,
+            operations=operations,
+            max_steps=400,
             metadata={"smoke": True, "scene": scene_type},
         ))
 
