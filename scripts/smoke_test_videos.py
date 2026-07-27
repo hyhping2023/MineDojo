@@ -36,7 +36,7 @@ SMOKE_OPERATIONS = [
 ]
 
 
-def run_smoke_test(snapshots_dir, output_dir, n_workers=4, image_size=(160, 256)):
+def run_smoke_test(snapshots_dir, output_dir, n_workers=4, image_size=(480, 640)):
     scheduler = TaskScheduler(
         n_workers=n_workers,
         snapshots_dir=snapshots_dir,
@@ -65,8 +65,12 @@ def main():
     parser.add_argument("--snapshots-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--n-workers", type=int, default=4)
-    parser.add_argument("--image-width", type=int, default=160)
-    parser.add_argument("--image-height", type=int, default=256)
+    # MineDojoSim treats image_size as (height, width); POVObservation sets
+    # video_height=image_size[0], video_width=image_size[1]. Default 480p.
+    parser.add_argument("--image-height", type=int, default=480,
+                        help="POV frame height in pixels (default 480 = 480p)")
+    parser.add_argument("--image-width", type=int, default=640,
+                        help="POV frame width in pixels (default 640)")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -88,7 +92,7 @@ def main():
         snapshots_dir=str(snapshots),
         output_dir=str(output),
         n_workers=args.n_workers,
-        image_size=(args.image_width, args.image_height),
+        image_size=(args.image_height, args.image_width),
     )
 
     print()

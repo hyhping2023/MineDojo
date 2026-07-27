@@ -33,7 +33,7 @@ def run_default_pipeline(
     snapshots_dir: str,
     output_dir: str,
     n_workers: int = 4,
-    image_size: tuple = (160, 256),
+    image_size: tuple = (480, 640),
 ) -> list:
     """Run a default pipeline: one movement task per scene type.
 
@@ -44,7 +44,7 @@ def run_default_pipeline(
         snapshots_dir: Directory with pre-built world snapshots.
         output_dir: Directory for video output.
         n_workers: Number of worker processes.
-        image_size: ``(width, height)`` observation size.
+        image_size: ``(height, width)`` observation size (MineDojoSim convention).
 
     Returns:
         List of :class:`~minedojo.workers.task.TaskResult` objects.
@@ -100,12 +100,12 @@ Example:
         help="Number of worker processes (default: 4)."
     )
     parser.add_argument(
-        "--image-width", type=int, default=160,
-        help="Observation image width (default: 160)."
+        "--image-height", type=int, default=480,
+        help="POV frame height in pixels (default 480 = 480p).",
     )
     parser.add_argument(
-        "--image-height", type=int, default=256,
-        help="Observation image height (default: 256)."
+        "--image-width", type=int, default=640,
+        help="POV frame width in pixels (default 640).",
     )
     parser.add_argument(
         "--task-spec", default=None,
@@ -128,7 +128,7 @@ Example:
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
 
-    image_size = (args.image_width, args.image_height)
+    image_size = (args.image_height, args.image_width)
 
     logger.info("Starting parallel video generation pipeline ...")
     logger.info("  Snapshots dir: %s", snapshots)
