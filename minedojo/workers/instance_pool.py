@@ -9,6 +9,7 @@ in use.
 """
 
 import multiprocessing
+import os
 from typing import Dict, List, Optional
 
 from minedojo.world_snapshots.config import SCENE_CONFIGS
@@ -58,7 +59,13 @@ class InstancePool:
 
         for scene_type in scene_types:
             for i in range(per_scene):
-                snapshot_path = f"{self.snapshots_dir}/{scene_type}"
+                # Store an ABSOLUTE path: FileWorldGenerator's `src` is resolved
+                # relative to the Minecraft process's cwd (a temp run dir), so a
+                # relative snapshot path would point into the temp dir and fail
+                # with ERROR_CANNOT_CREATE_WORLD.
+                snapshot_path = os.path.abspath(
+                    os.path.join(self.snapshots_dir, scene_type)
+                )
                 self._instances.append({
                     "scene_type": scene_type,
                     "snapshot_path": snapshot_path,
