@@ -26,6 +26,11 @@ class CMDExecutor:
         "setblock",
         "spreadplayers",
         "save-all",
+        "effect",        # /effect — needed for god_mode (resistance/saturation/regen)
+        "setworldspawn", # /setworldspawn — fix spawn point on the ground
+        "give",          # /give — grant items to the agent
+        "fill",          # /fill — bulk block placement (scene setup)
+        "gamerule",      # /gamerule — e.g. keepInventory, doMobSpawning
     }
 
     def __init__(self, world, raise_error_on_invalid_cmds: bool = False):
