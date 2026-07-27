@@ -110,31 +110,40 @@ class SpawnAttackOperation(Operation):
         weapon = params.get("weapon")
         attack_steps = params.get("attack_steps", 20)
 
-        # Step 1: Spawn the mob.
+        # Step 1: Spawn the mob. spawn_mobs() steps the env internally; if
+        # the env terminates (e.g. MC crash), bail out before any further step.
         if not mob.startswith("minecraft:"):
             mob = "minecraft:" + mob
-        self.env.spawn_mobs([mob], [list(rel_pos)])
-        self.noop()
+        _, _, terminated, _, _ = self.env.spawn_mobs([mob], [list(rel_pos)])
+        if terminated:
+            return False
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
 
         # Step 2: Equip weapon if specified.
         if weapon is not None:
             if not weapon.startswith("minecraft:"):
                 weapon = "minecraft:" + weapon
             try:
-                self.env.execute_cmd(
+                _, _, terminated, _, _ = self.env.execute_cmd(
                     f"/replaceitem entity @p slot.weapon.mainhand {weapon} 1 0"
                 )
+                if terminated:
+                    return False
             except AttributeError:
                 pass
-            self.noop()
+            _, _, terminated, _, _ = self.noop()
+            if terminated:
+                return False
 
         # Step 3: Attack.
         for _ in range(attack_steps):
             action = self.env.action_space.no_op()
             if "attack" in action:
                 action["attack"] = 1
-            obs, _, terminated, _, _ = self.step(action)
+            _, _, terminated, _, _ = self.step(action)
             if terminated:
-                return True
+                return False
 
         return True

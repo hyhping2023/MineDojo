@@ -100,6 +100,24 @@ def setup_cave(env: MineDojoSim) -> None:
     env.set_block(blocks, positions)
 
 
+@_register("setup_water")
+def setup_water(env: MineDojoSim) -> None:
+    """Build a small wooden platform at the agent's spawn point in the ocean.
+
+    Places a 5x5 oak-planks platform at the agent's feet so the agent stands
+    on solid ground instead of treading water.  Without this, the agent
+    drowns within ~30 steps of spawning in an ocean biome.
+    """
+    planks = "minecraft:planks"
+    blocks: List[str] = []
+    positions: List[List[int]] = []
+    for x in range(-2, 3):
+        for z in range(-2, 3):
+            blocks.append(planks)
+            positions.append([x, -1, z])
+    env.set_block(blocks, positions)
+
+
 @_register("setup_gui_room")
 def setup_gui_room(env: MineDojoSim) -> None:
     """Build a flat room and place GUI interaction blocks.

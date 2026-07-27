@@ -21,9 +21,11 @@ package com.microsoft.Malmo.MissionHandlers;
 
 import static org.lwjgl.opengl.GL11.GL_DEPTH_COMPONENT;
 import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL11.GL_PACK_ALIGNMENT;
 import static org.lwjgl.opengl.GL11.GL_RGB;
 import static org.lwjgl.opengl.GL11.GL_RGBA;
 import static org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE;
+import static org.lwjgl.opengl.GL11.glPixelStorei;
 import static org.lwjgl.opengl.GL11.glReadPixels;
 
 import java.nio.ByteBuffer;
@@ -81,6 +83,13 @@ public class VideoProducerImplementation extends HandlerBase implements IVideoPr
         GL30.glBlitFramebuffer(0, 0, Minecraft.getMinecraft().getFramebuffer().framebufferWidth, Minecraft.getMinecraft().getFramebuffer().framebufferHeight, 0, 0, width, height, GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
 
         this.fbo.bindFramebuffer(true);
+        // Force 1-byte row alignment so glReadPixels does not pad each row
+        // to a 4-byte boundary. Without this, widths whose pixel row size
+        // (width * 3 for RGB) is not a multiple of 4 get 1-3 padding bytes
+        // per row, which the Python side's reshape((H, W, 3)) does not account
+        // for — producing a diagonal shear and channel-averaging (the frame
+        // appears tilted and greyscale).
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
         glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
         glReadPixels(0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, this.depthBuffer);
         this.fbo.unbindFramebuffer();
@@ -168,6 +177,13 @@ public class VideoProducerImplementation extends HandlerBase implements IVideoPr
         // GlStateManager.bindTexture(this.fbo.framebufferTexture);
         // GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, format, GL_UNSIGNED_BYTE,
         // buffer);
+        // Force 1-byte row alignment so glReadPixels does not pad each row
+        // to a 4-byte boundary. Without this, widths whose pixel row size
+        // (width * 3 for RGB) is not a multiple of 4 get 1-3 padding bytes
+        // per row, which the Python side's reshape((H, W, 3)) does not account
+        // for — producing a diagonal shear and channel-averaging (the frame
+        // appears tilted and greyscale).
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
         glReadPixels(0, 0, width, height, format, GL_UNSIGNED_BYTE, buffer);
         this.fbo.unbindFramebuffer();
         GlStateManager.enableDepth();

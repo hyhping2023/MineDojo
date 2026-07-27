@@ -35,8 +35,12 @@ class SpawnEntityOperation(Operation):
             entity = "minecraft:" + entity
 
         rel_pos = params.get("rel_pos", [3, 0, 0])
-        self.env.spawn_mobs([entity], [list(rel_pos)])
-        self.noop()
+        _, _, terminated, _, _ = self.env.spawn_mobs([entity], [list(rel_pos)])
+        if terminated:
+            return False
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
         return True
 
 
@@ -60,8 +64,12 @@ class InteractEntityOperation(Operation):
         action = self.env.action_space.no_op()
         if "use" in action:
             action["use"] = 1
-        self.step(action)
-        self.noop()
+        _, _, terminated, _, _ = self.step(action)
+        if terminated:
+            return False
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
         return True
 
 
@@ -86,6 +94,10 @@ class MountOperation(Operation):
         action = self.env.action_space.no_op()
         if "use" in action:
             action["use"] = 1
-        self.step(action)
-        self.noop()
+        _, _, terminated, _, _ = self.step(action)
+        if terminated:
+            return False
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
         return True

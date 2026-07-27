@@ -18,9 +18,13 @@ class OpenInventoryOperation(Operation):
         action = self.env.action_space.no_op()
         if "inventory" in action:
             action["inventory"] = 1
-        self.step(action)
+        _, _, terminated, _, _ = self.step(action)
+        if terminated:
+            return False
         # Allow a frame for the GUI to open.
-        self.noop()
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
         return True
 
 
@@ -37,8 +41,12 @@ class CloseInventoryOperation(Operation):
         action = self.env.action_space.no_op()
         if "inventory" in action:
             action["inventory"] = 1
-        self.step(action)
-        self.noop()
+        _, _, terminated, _, _ = self.step(action)
+        if terminated:
+            return False
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
         return True
 
 
@@ -74,21 +82,22 @@ class SelectItemOperation(Operation):
         if item is None:
             return False
 
+        terminated = False
         try:
             # Format item name if needed.
             if not item.startswith("minecraft:"):
                 item = "minecraft:" + item
 
             if slot == "mainhand":
-                self.env.execute_cmd(
+                _, _, terminated, _, _ = self.env.execute_cmd(
                     f"/replaceitem entity @p slot.weapon.mainhand {item} 1 0"
                 )
             elif slot == "offhand":
-                self.env.execute_cmd(
+                _, _, terminated, _, _ = self.env.execute_cmd(
                     f"/replaceitem entity @p slot.weapon.offhand {item} 1 0"
                 )
             else:
-                self.env.execute_cmd(
+                _, _, terminated, _, _ = self.env.execute_cmd(
                     f"/replaceitem entity @p slot.armor.{slot} {item} 1 0"
                 )
         except AttributeError:
@@ -99,10 +108,14 @@ class SelectItemOperation(Operation):
                     key = f"hotbar.{i}"
                     if key in action:
                         action[key] = 1
-                        self.step(action)
+                        _, _, terminated, _, _ = self.step(action)
                         break
 
-        self.noop()
+        if terminated:
+            return False
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
         return True
 
 
@@ -130,14 +143,20 @@ class DropItemOperation(Operation):
             action = self.env.action_space.no_op()
             if "drop" in action:
                 action["drop"] = 1
-                self.step(action)
+                _, _, terminated, _, _ = self.step(action)
+                if terminated:
+                    return False
         elif slot == "offhand":
             # Swap offhand to mainhand, then drop, then swap back.
             # Simplified: just drop mainhand.
             action = self.env.action_space.no_op()
             if "drop" in action:
                 action["drop"] = 1
-                self.step(action)
+                _, _, terminated, _, _ = self.step(action)
+                if terminated:
+                    return False
 
-        self.noop()
+        _, _, terminated, _, _ = self.noop()
+        if terminated:
+            return False
         return True

@@ -292,8 +292,15 @@ class BridgeEnv:
             if seed is not None:
                 token += f":{seed}"
             token = token.encode()
-            instance.client_socket_send_message(mission_xml)
-            instance.client_socket_send_message(token)
+            try:
+                instance.client_socket_send_message(mission_xml)
+                instance.client_socket_send_message(token)
+            except (socket.error, BrokenPipeError) as e:
+                raise RuntimeError(
+                    "Minecraft process closed the connection during mission "
+                    "setup — the process likely crashed during world "
+                    f"generation/startup. Socket error: {e}"
+                ) from e
 
             reply = instance.client_socket_recv_message()
             (ok,) = struct.unpack("!I", reply)
@@ -344,10 +351,17 @@ class BridgeEnv:
 
         logger.info(f"Attempting to quit: {instance}")
         # while not has_quit:
-        instance.client_socket_send_message("<Quit/>".encode())
-        reply = instance.client_socket_recv_message()
-        (ok,) = struct.unpack("!I", reply)
-        has_quit = not (ok == 0)
+        try:
+            instance.client_socket_send_message("<Quit/>".encode())
+            reply = instance.client_socket_recv_message()
+            (ok,) = struct.unpack("!I", reply)
+            has_quit = not (ok == 0)
+        except (socket.error, BrokenPipeError, TypeError) as e:
+            # Best-effort quit: if the instance just started fresh there may be
+            # no episode to quit, and if MC has already exited we cannot reach
+            # it anyway. Either way, reset() will surface a clearer error from
+            # _send_mission if the process is actually dead.
+            logger.warning(f"Failed to send quit to {instance}: {e}")
         # TODO: Get this to work properly
 
         # time.sleep(0.1)

@@ -121,6 +121,18 @@ class VideoWorker(multiprocessing.Process):
             env = self._create_env_from_snapshot(inst["snapshot_path"], scene_cfg)
             env.reset()
 
+            # FileWorldGenerator does not always restore the time-of-day and
+            # weather from the snapshot's level.dat, so the world can load at
+            # night or in a storm. At night Minecraft's lighting is so low that
+            # the POV is nearly black and colour information is lost (the
+            # three channels end up near-equal). Force midday + clear weather
+            # so the POV renders the scene as it was intended.
+            try:
+                env.set_time(6000)
+                env.set_weather("clear")
+            except Exception:
+                pass  # Non-critical — proceed even if this fails
+
             # 2. Randomize spawn position within the scene's spawn region
             self._randomize_spawn(env, scene_cfg)
 
@@ -179,14 +191,13 @@ class VideoWorker(multiprocessing.Process):
             "event_level_control": True,
         }
 
-        # Use scene config for biome / world type info if available
-        if scene_cfg is not None:
-            if scene_cfg.world_type == "specified_biome" and scene_cfg.biome:
-                kwargs["generate_world_type"] = "specified_biome"
-                kwargs["specified_biome"] = scene_cfg.biome
-            elif scene_cfg.world_type == "flat":
-                kwargs["generate_world_type"] = "flat"
-                kwargs["regenerate_world_after_reset"] = True
+        # Always load the world from the pre-built snapshot file. The snapshot
+        # was built by SnapshotBuilder with the correct world_type/biome and
+        # any scene-specific setup (cave room, GUI room, water platform, etc.),
+        # so overriding generate_world_type here would discard the pre-built
+        # world and regenerate terrain from scratch — which is slow and prone
+        # to failures (e.g. "Unable to find spawn biome" for extreme_hills,
+        # agent drowning in a random ocean for water).
 
         return MineDojoSim(**kwargs)
 
