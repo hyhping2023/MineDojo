@@ -182,8 +182,8 @@ SCENE_CONFIGS: Dict[str, SceneConfig] = {
             {"type": "diamond_sword", "quantity": 1},
             {"type": "iron_ingot", "quantity": 10},
             {"type": "diamond", "quantity": 5},
-            {"type": "lapis_lazuli", "quantity": 64},
-            {"type": "bottle", "quantity": 64},
+            {"type": "dye", "variant": 4, "quantity": 64},  # lapis_lazuli = dye with damage 4 in MC 1.11.2
+            {"type": "glass_bottle", "quantity": 64},
             {"type": "nether_wart", "quantity": 64},
             {"type": "diamond_helmet", "quantity": 1},
         ],

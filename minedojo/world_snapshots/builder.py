@@ -152,16 +152,16 @@ def _fill_chest(env: MineDojoSim, rel_x: int, rel_y: int, rel_z: int) -> None:
     Uses ``/replaceitem block`` to populate container slots of the chest.
     """
     chest_items = [
-        ("minecraft:diamond", 3),
-        ("minecraft:iron_ingot", 5),
-        ("minecraft:emerald", 2),
-        ("minecraft:lapis_lazuli", 16),
+        ("minecraft:diamond", 3, 0),
+        ("minecraft:iron_ingot", 5, 0),
+        ("minecraft:emerald", 2, 0),
+        ("minecraft:dye", 16, 4),  # lapis_lazuli = dye with damage 4 in MC 1.11.2
     ]
-    for slot_idx, (item, qty) in enumerate(chest_items):
+    for slot_idx, (item, qty, data) in enumerate(chest_items):
         cmd = (
             f"/replaceitem block "
             f"~{rel_x} ~{rel_y} ~{rel_z} "
-            f"container.{slot_idx} {item} {qty}"
+            f"container.{slot_idx} {item} {qty} {data}"
         )
         env.execute_cmd(cmd)
 
@@ -227,6 +227,7 @@ class SnapshotBuilder:
                 InventoryItem(
                     slot=idx,
                     name=item["type"],
+                    variant=item.get("variant"),
                     quantity=item.get("quantity", 1),
                 )
                 for idx, item in enumerate(config.default_inventory)
