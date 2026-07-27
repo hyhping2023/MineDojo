@@ -191,7 +191,12 @@ class VideoWorker(multiprocessing.Process):
         return MineDojoSim(**kwargs)
 
     def _randomize_spawn(self, env, scene_cfg: Optional[SceneConfig]):
-        """Teleport agent to a random location within the scene's spawn region."""
+        """Teleport agent to a random X/Z within the scene's spawn region.
+
+        Keeps the agent's *current* Y (the snapshot's ground-level spawn) so
+        the agent doesn't get placed high in the air and fall to death. Only
+        X, Z, and yaw are randomized.
+        """
         if scene_cfg is None:
             return
 
@@ -202,13 +207,17 @@ class VideoWorker(multiprocessing.Process):
         x = random.uniform(
             sr.get("xmin", -50), sr.get("xmax", 50)
         )
-        y = random.uniform(
-            sr.get("ymin", 63), sr.get("ymax", 72)
-        )
         z = random.uniform(
             sr.get("zmin", -50), sr.get("zmax", 50)
         )
         yaw = random.uniform(0, 360)
+
+        # Preserve the current Y (ground level from the snapshot spawn).
+        try:
+            loc = env.prev_obs.get("location_stats", {}) if env.prev_obs else {}
+            y = float(loc.get("ypos", 64))
+        except Exception:
+            y = 64.0
 
         try:
             env.teleport_agent(x, y, z, yaw, 0)
