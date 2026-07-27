@@ -207,6 +207,10 @@ class SnapshotBuilder:
         kwargs: dict = {
             "image_size": self.image_size,
             "seed": self.seed,
+            # Also seed world generation so builds are reproducible — important
+            # for the village scene, where VillageSpawnDecorator only succeeds
+            # if a village happens to generate near spawn (seed-dependent).
+            "world_seed": self.seed,
             "sim_name": f"snapshot_{config.name}",
         }
 
