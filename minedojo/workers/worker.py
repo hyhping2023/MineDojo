@@ -70,10 +70,15 @@ class VideoWorker(multiprocessing.Process):
         from minedojo.operations.sequencer import OperationSequencer
         from minedojo.workers.video_encoder import VideoEncoder
 
+        # MineDojoSim treats image_size as (height, width) — its POV handler
+        # sets video_height=image_size[0], video_width=image_size[1]. So the
+        # encoder must use width=image_size[1], height=image_size[0] to match
+        # the actual frame dimensions (else ffmpeg -s WxH is swapped and the
+        # video is distorted).
         self._encoder = VideoEncoder(
             self.output_dir,
-            width=self.image_size[0],
-            height=self.image_size[1],
+            width=self.image_size[1],
+            height=self.image_size[0],
         )
 
         while True:
