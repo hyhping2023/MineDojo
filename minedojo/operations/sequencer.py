@@ -50,6 +50,9 @@ class OperationSequencer:
         self.frames = []
         self.ops_executed = []
 
+        # Capture the initial frame (post-reset obs) before any operation.
+        self._append_current_frame()
+
         for op_name, params in operations:
             op_cls = OPERATION_REGISTRY.get(op_name)
             if op_cls is None:
@@ -59,7 +62,9 @@ class OperationSequencer:
                     "ops_executed": self.ops_executed,
                 }
 
-            op = op_cls(self.env)
+            # Pass our frame buffer so each step() inside the operation
+            # appends its POV frame for video generation.
+            op = op_cls(self.env, frame_buffer=self.frames)
             success = op.execute(params)
             self.ops_executed.append(
                 {"name": op_name, "params": params, "success": success}
@@ -70,22 +75,14 @@ class OperationSequencer:
                     "ops_executed": self.ops_executed,
                 }
 
-        self.frames = self._collect_frames()
         return {
             "success": True,
             "ops_executed": self.ops_executed,
             "frame_count": len(self.frames),
         }
 
-    def _collect_frames(self) -> List[np.ndarray]:
-        """Collect POV frames from the environment's latest observation.
-
-        Returns:
-            List of POV numpy arrays.  Currently returns the single most
-            recent POV frame from env.prev_obs.  Extended implementations
-            may buffer frames across steps.
-        """
+    def _append_current_frame(self) -> None:
+        """Append the env's current POV frame to self.frames if available."""
         obs = self.env.prev_obs
         if obs and "pov" in obs:
-            return [obs["pov"]]
-        return []
+            self.frames.append(obs["pov"])

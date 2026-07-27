@@ -70,7 +70,11 @@ class VideoWorker(multiprocessing.Process):
         from minedojo.operations.sequencer import OperationSequencer
         from minedojo.workers.video_encoder import VideoEncoder
 
-        self._encoder = VideoEncoder(self.output_dir)
+        self._encoder = VideoEncoder(
+            self.output_dir,
+            width=self.image_size[0],
+            height=self.image_size[1],
+        )
 
         while True:
             task = self.task_queue.get()

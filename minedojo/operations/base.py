@@ -1,7 +1,7 @@
 """Base class and utilities for scripted Minecraft operations."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class Operation(ABC):
@@ -19,12 +19,15 @@ class Operation(ABC):
         env: The MineDojoSim (or wrapped) environment instance.
         _step_count: Steps executed since last reset_counter().
         _start_frame: Frame number when execution began.
+        _frame_buffer: Optional list that POV frames are appended to after
+            each step (used by OperationSequencer to capture video).
     """
 
-    def __init__(self, env):
+    def __init__(self, env, frame_buffer: Optional[List] = None):
         self.env = env
         self._step_count = 0
         self._start_frame = 0
+        self._frame_buffer = frame_buffer
 
     @abstractmethod
     def get_parameters(self) -> Dict[str, Any]:
@@ -64,6 +67,9 @@ class Operation(ABC):
         """
         obs, reward, terminated, truncated, info = self.env.step(action)
         self._step_count += 1
+        # Capture the POV frame for video generation.
+        if self._frame_buffer is not None and obs and "pov" in obs:
+            self._frame_buffer.append(obs["pov"])
         return obs, reward, terminated, truncated, info
 
     def noop(self):
