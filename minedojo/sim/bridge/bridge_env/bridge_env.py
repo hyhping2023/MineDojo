@@ -105,12 +105,28 @@ class BridgeEnv:
                     instance.client_socket_send_message(step_message.encode())
                     # Receive the (image) observation.
                     obs = instance.client_socket_recv_message()
+                    if obs is None:
+                        raise socket.error(
+                            "Minecraft closed the connection during step "
+                            "(recv returned None — MC likely exited)"
+                        )
                     # Receive reward (useless though), done, and sent.
                     reply = instance.client_socket_recv_message()
+                    if reply is None:
+                        raise socket.error(
+                            "Minecraft closed the connection during step "
+                            "(recv returned None — MC likely exited)"
+                        )
                     _, done, sent = struct.unpack("!dbb", reply)
                     any_done = any_done or (done == 1)
                     # Receive info from the environment.
-                    malmo_json = instance.client_socket_recv_message().decode("utf-8")
+                    malmo_raw = instance.client_socket_recv_message()
+                    if malmo_raw is None:
+                        raise socket.error(
+                            "Minecraft closed the connection during step "
+                            "(recv returned None — MC likely exited)"
+                        )
+                    malmo_json = malmo_raw.decode("utf-8")
                     raw = json.loads(malmo_json) if malmo_json is not None else {}
                     raw["pov"] = obs
                     all_obs[i] = raw

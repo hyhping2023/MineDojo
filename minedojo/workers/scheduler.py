@@ -100,15 +100,35 @@ class TaskScheduler:
         """
         return self.result_queue.get(timeout=timeout) if timeout else self.result_queue.get()
 
-    def collect_results(self, count: int) -> List[TaskResult]:
-        """Collect exactly *count* results (blocking).
+    def collect_results(self, count: int, timeout: float = 600.0) -> List[TaskResult]:
+        """Collect *count* results, with a per-result safety timeout.
 
-        Assumes *count* tasks have been submitted and no more results
-        will arrive beyond those.
+        Assumes *count* tasks have been submitted. If a result does not arrive
+        within *timeout* seconds (e.g. a worker process crashed without putting
+        a result on the queue), a failure :class:`TaskResult` is synthesized so
+        the caller is not blocked forever.
+
+        Parameters:
+            count: Number of results to collect.
+            timeout: Max seconds to wait for each result (default 600).
         """
-        results = []
-        for _ in range(count):
-            results.append(self.result_queue.get())
+        import queue as _queue
+
+        results: List[TaskResult] = []
+        for i in range(count):
+            try:
+                results.append(self.result_queue.get(timeout=timeout))
+            except _queue.Empty:
+                # A worker likely crashed before producing a result. Synthesize
+                # a failure so collect_results returns instead of hanging.
+                results.append(TaskResult(
+                    task_id=f"<missing-{i}>",
+                    success=False,
+                    errors=[
+                        f"No result within {timeout}s — worker process likely "
+                        f"crashed (check for MC exit / segfault / OOM above)"
+                    ],
+                ))
         return results
 
     def shutdown(self):
