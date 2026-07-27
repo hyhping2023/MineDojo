@@ -204,17 +204,34 @@ class BridgeEnv:
                 st_time = time.time()
                 instance.client_socket_send_message(peek_message.encode())
                 obs = instance.client_socket_recv_message()
-                info = instance.client_socket_recv_message().decode("utf-8")
-
+                info_raw = instance.client_socket_recv_message()
                 reply = instance.client_socket_recv_message()
-                (done,) = struct.unpack("!b", reply)
-                any_done = any_done or (done == 1)
-                if obs is None or len(obs) == 0:
+
+                # If any of the three recvs came back None the mission did not
+                # start properly (e.g. ERROR_CANNOT_CREATE_WORLD — Minecraft
+                # could not load the world snapshot). Retry briefly in case MC
+                # is still spinning up, then surface a clear error instead of
+                # crashing on None.decode() / struct.unpack(None).
+                if (
+                    obs is None
+                    or (hasattr(obs, "__len__") and len(obs) == 0)
+                    or info_raw is None
+                    or reply is None
+                ):
                     if time.time() - st_time > MAX_WAIT:
                         instance.client_socket_close()
-                        raise Exception("too long waiting for first observation")
+                        raise RuntimeError(
+                            "Minecraft did not respond to the first observation "
+                            "query (recv returned None) — the mission likely failed "
+                            "to start, e.g. ERROR_CANNOT_CREATE_WORLD. Check the "
+                            "Minecraft logs (snapshot missing/corrupt?)."
+                        )
                     time.sleep(0.1)
                     continue
+
+                info = info_raw.decode("utf-8")
+                (done,) = struct.unpack("!b", reply)
+                any_done = any_done or (done == 1)
 
                 raw = json.loads(info) if info is not None else {}
                 raw["pov"] = obs
