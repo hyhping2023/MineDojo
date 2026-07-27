@@ -220,6 +220,11 @@ class SnapshotBuilder:
             kwargs["specified_biome"] = config.biome
         elif config.world_type == "flat":
             kwargs["regenerate_world_after_reset"] = True
+        elif config.world_type == "default":
+            # force_reset=True so DefaultWorldGenerator actually flushes the
+            # world to saves/ (with force_reset=False the world is not
+            # persisted and save_snapshot copies an empty directory).
+            kwargs["regenerate_world_after_reset"] = True
 
         # Village spawning is managed via the extra_setup mechanism
         if config.extra_setup == "setup_village":

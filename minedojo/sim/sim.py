@@ -668,19 +668,36 @@ class MineDojoSim(gym.Env):
             raise RuntimeError(f"Minecraft saves directory not found: {saves_dir}")
 
         # Find the most recent world save directory (UUID-named, temp prefixed).
+        # Only consider dirs that actually contain a level.dat — empty/temp
+        # dirs (e.g. from a world that wasn't flushed with force_reset=True)
+        # would otherwise be copied silently and produce an unloadable snapshot.
         world_dirs = sorted(
-            [d for d in saves_dir.iterdir() if d.is_dir()],
+            [
+                d for d in saves_dir.iterdir()
+                if d.is_dir() and (d / "level.dat").exists()
+            ],
             key=lambda d: d.stat().st_mtime,
             reverse=True,
         )
         if not world_dirs:
-            raise RuntimeError("No world save directories found.")
+            present = [d.name for d in saves_dir.iterdir() if d.is_dir()]
+            raise RuntimeError(
+                f"No valid Minecraft world save (with level.dat) found in "
+                f"{saves_dir}. The world was not flushed to disk — for "
+                f"'default' world_type, ensure regenerate_world_after_reset="
+                f"True (force_reset). Dirs present: {present}"
+            )
 
         source_dir = world_dirs[0]
         dest = pathlib.Path(save_path)
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(str(source_dir), str(dest))
+        if not (dest / "level.dat").exists():
+            raise RuntimeError(
+                f"Snapshot at {dest} is missing level.dat after copy — "
+                f"world save was incomplete."
+            )
 
     def close(self):
         """Environments will automatically close() themselves when garbage collected or when the program exits."""
