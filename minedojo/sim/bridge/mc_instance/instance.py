@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import uuid
 import time
@@ -20,6 +21,38 @@ import logging
 from ...bridge import utils as U
 
 __all__ = ["MinecraftInstance"]
+
+
+# --- Java log line filtering -------------------------------------------------
+# Java/FML log lines look like: "[18:31:43] [main/INFO] [FML]: message"
+# MINEDOJO_DEBUG_LOG=1 prints everything (legacy). MINEDOJO_LOG_LEVEL=INFO
+# (or WARN/ERROR) prints only Java lines at that level or above, plus
+# continuation/stack-trace lines that have no level marker.
+_JAVA_LEVELS = {
+    "TRACE": 0, "DEBUG": 1, "INFO": 2,
+    "WARN": 3, "WARNING": 3, "ERROR": 4, "FATAL": 5,
+}
+_JAVA_LEVEL_RE = re.compile(r"\[\w+/(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\]")
+
+
+def _java_line_level(line: str):
+    m = _JAVA_LEVEL_RE.search(line)
+    if not m:
+        return None
+    return _JAVA_LEVELS.get(m.group(1).upper(), 2)
+
+
+def _should_print_java_line(line: str) -> bool:
+    if os.environ.get("MINEDOJO_DEBUG_LOG", "").lower() not in ("", "0", "false"):
+        return True  # legacy: print everything
+    level = os.environ.get("MINEDOJO_LOG_LEVEL", "").upper()
+    if not level:
+        return False  # no console logging requested
+    threshold = _JAVA_LEVELS.get(level, 2)
+    line_lvl = _java_line_level(line)
+    if line_lvl is None:
+        return True  # continuation / stack-trace line — keep it
+    return line_lvl >= threshold
 
 
 logger = logging.getLogger(__name__)
@@ -195,7 +228,7 @@ class MinecraftInstance:
                     mine_log_encoding
                 )
 
-                if os.environ.get("MINEDOJO_DEBUG_LOG", False):
+                if _should_print_java_line(line):
                     # Print Java logs to console
                     print(line.strip("\n"))
 
@@ -274,7 +307,7 @@ class MinecraftInstance:
                             )
                             linestr = line.decode(mine_log_encoding)
 
-                        if os.environ.get("MINEDOJO_DEBUG_LOG", False):
+                        if _should_print_java_line(linestr):
                             # Print Java logs to console
                             print(linestr.strip("\n"))
 
