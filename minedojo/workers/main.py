@@ -33,7 +33,7 @@ def run_default_pipeline(
     snapshots_dir: str,
     output_dir: str,
     n_workers: int = 4,
-    image_size: tuple = (480, 640),
+    image_size: tuple = (480, 854),
 ) -> list:
     """Run a default pipeline: one movement task per scene type.
 
@@ -104,8 +104,8 @@ Example:
         help="POV frame height in pixels (default 480 = 480p).",
     )
     parser.add_argument(
-        "--image-width", type=int, default=640,
-        help="POV frame width in pixels (default 640).",
+        "--image-width", type=int, default=854,
+        help="POV frame width in pixels (default 854 = 16:9 480p).",
     )
     parser.add_argument(
         "--task-spec", default=None,
