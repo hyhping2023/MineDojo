@@ -84,5 +84,9 @@ class OperationSequencer:
     def _append_current_frame(self) -> None:
         """Append the env's current POV frame to self.frames if available."""
         obs = self.env.prev_obs
-        if obs and "pov" in obs:
-            self.frames.append(obs["pov"])
+        if obs:
+            # MineDojoSim's POV handler uses to_string()="rgb"; fall back to
+            # "pov" for wrapped/renamed envs.
+            frame = obs.get("rgb", obs.get("pov")) if isinstance(obs, dict) else None
+            if frame is not None:
+                self.frames.append(frame)

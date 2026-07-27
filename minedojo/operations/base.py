@@ -67,9 +67,13 @@ class Operation(ABC):
         """
         obs, reward, terminated, truncated, info = self.env.step(action)
         self._step_count += 1
-        # Capture the POV frame for video generation.
-        if self._frame_buffer is not None and obs and "pov" in obs:
-            self._frame_buffer.append(obs["pov"])
+        # Capture the POV frame for video generation. MineDojoSim's POV
+        # observation handler uses to_string()="rgb", so the key is "rgb"
+        # (not "pov"); fall back to "pov" for wrapped/renamed envs.
+        if self._frame_buffer is not None and obs:
+            frame = obs.get("rgb", obs.get("pov")) if isinstance(obs, dict) else None
+            if frame is not None:
+                self._frame_buffer.append(frame)
         return obs, reward, terminated, truncated, info
 
     def noop(self):
