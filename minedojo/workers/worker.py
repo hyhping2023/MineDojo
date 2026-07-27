@@ -133,6 +133,20 @@ class VideoWorker(multiprocessing.Process):
             except Exception:
                 pass  # Non-critical — proceed even if this fails
 
+            # 1.5 Optional god mode (e.g. for smoke tests): make the agent
+            # invulnerable (resistance 255 = no damage) and never hungry so the
+            # task runs to completion instead of ending early from death by
+            # mob / fall / drowning. Applied before the spawn teleport so fall
+            # damage during _randomize_spawn is also negated. Gated on a
+            # metadata flag so real data-generation tasks are unaffected.
+            if task.metadata.get("god_mode"):
+                try:
+                    env.execute_cmd("/effect @p resistance 99999 255 true")
+                    env.execute_cmd("/effect @p saturation 99999 255 true")
+                    env.execute_cmd("/effect @p regeneration 99999 255 true")
+                except Exception:
+                    pass  # Non-critical
+
             # 2. Randomize spawn position within the scene's spawn region
             self._randomize_spawn(env, scene_cfg)
 

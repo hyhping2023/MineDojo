@@ -82,7 +82,7 @@ def run_smoke_test(snapshots_dir, output_dir, n_workers=4, image_size=(480, 854)
             scene_type=scene_type,
             operations=operations,
             max_steps=400,
-            metadata={"smoke": True, "scene": scene_type},
+            metadata={"smoke": True, "scene": scene_type, "god_mode": True},
         ))
 
     results = scheduler.collect_results(len(scene_types))
