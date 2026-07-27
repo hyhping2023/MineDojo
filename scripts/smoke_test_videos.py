@@ -1,0 +1,115 @@
+"""Smoke test: generate one example video per world snapshot scene.
+
+Submits a short, voxel-free operation sequence (camera turn + strafe) for each
+of the 7 scene types so you can eyeball whether the pipeline (snapshot load ->
+MC launch -> frame capture -> H.264 encode) is working end-to-end.
+
+Usage::
+
+    python scripts/smoke_test_videos.py \\
+        --snapshots-dir /data/snapshots \\
+        --output-dir /data/videos_smoke \\
+        --n-workers 4
+
+Each scene produces one ``.mp4``. A summary table is printed at the end.
+"""
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+from minedojo.world_snapshots.config import SCENE_CONFIGS
+from minedojo.workers.task import VideoTask
+from minedojo.workers.scheduler import TaskScheduler
+
+logger = logging.getLogger(__name__)
+
+# Voxel-free movement sequence: visible camera + strafe action, works in every
+# scene without use_voxel=True (navigate would be a no-op without voxels).
+SMOKE_OPERATIONS = [
+    ("look_at", {"yaw": 90, "pitch": 0}),
+    ("strafe", {"direction": "right", "steps": 25}),
+    ("look_at", {"yaw": 270, "pitch": 0}),
+    ("strafe", {"direction": "left", "steps": 25}),
+    ("look_at", {"yaw": 0, "pitch": 0}),
+]
+
+
+def run_smoke_test(snapshots_dir, output_dir, n_workers=4, image_size=(160, 256)):
+    scheduler = TaskScheduler(
+        n_workers=n_workers,
+        snapshots_dir=snapshots_dir,
+        output_dir=output_dir,
+        image_size=image_size,
+    )
+    scheduler.start()
+
+    scene_types = list(SCENE_CONFIGS.keys())
+    for scene_type in scene_types:
+        scheduler.submit(VideoTask(
+            task_id=f"smoke_{scene_type}",
+            scene_type=scene_type,
+            operations=SMOKE_OPERATIONS,
+            max_steps=200,
+            metadata={"smoke": True, "scene": scene_type},
+        ))
+
+    results = scheduler.collect_results(len(scene_types))
+    scheduler.shutdown()
+    return results
+
+
+def main():
+    parser = argparse.ArgumentParser(description="MineDojo smoke test: one video per scene")
+    parser.add_argument("--snapshots-dir", required=True)
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--n-workers", type=int, default=4)
+    parser.add_argument("--image-width", type=int, default=160)
+    parser.add_argument("--image-height", type=int, default=256)
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+    )
+
+    snapshots = Path(args.snapshots_dir)
+    if not snapshots.exists():
+        logger.error("Snapshots directory does not exist: %s", snapshots)
+        sys.exit(1)
+    output = Path(args.output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Smoke test: 1 video per scene, %d scenes, %d workers",
+                len(SCENE_CONFIGS), args.n_workers)
+
+    results = run_smoke_test(
+        snapshots_dir=str(snapshots),
+        output_dir=str(output),
+        n_workers=args.n_workers,
+        image_size=(args.image_width, args.image_height),
+    )
+
+    print()
+    print("=" * 70)
+    print("SMOKE TEST RESULTS")
+    print("=" * 70)
+    succeeded = 0
+    for r in results:
+        status = "OK  " if r.success else "FAIL"
+        if r.success:
+            succeeded += 1
+        print(f"  [{status}] {r.task_id:28s} frames={r.frames:5d} "
+              f"time={r.duration_seconds:6.1f}s path={r.video_path}")
+        for err in r.errors:
+            if err:
+                print(f"         error: {err.strip().splitlines()[-1]}")
+    print("=" * 70)
+    print(f"Total: {len(results)} scenes, {succeeded} ok, {len(results) - succeeded} failed")
+    print("=" * 70)
+    sys.exit(0 if succeeded == len(results) else 1)
+
+
+if __name__ == "__main__":
+    main()

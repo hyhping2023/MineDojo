@@ -219,6 +219,7 @@ class VideoWorker(multiprocessing.Process):
                 InventoryItem(
                     slot=idx,
                     name=item["type"],
+                    variant=item.get("variant"),
                     quantity=item.get("quantity", 1),
                 )
             )
