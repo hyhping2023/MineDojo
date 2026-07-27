@@ -305,6 +305,14 @@ class SnapshotBuilder:
         self._env.set_time(6000)
         self._env.set_weather("clear")
 
+        # 4.5 Fix the world spawn point to the agent's current (ground)
+        # position, so workers loading this snapshot don't spawn the agent
+        # high in the air and fall to death.
+        try:
+            self._env.execute_cmd("/setworldspawn ~ ~ ~")
+        except Exception:
+            pass
+
         # 5. Save snapshot
         logger.info("Saving snapshot to '%s' ...", output_path)
         self._env.execute_cmd("/save-all")
